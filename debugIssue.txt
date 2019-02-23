@@ -1,0 +1,27 @@
+issue1:
+block/blkdebug.c:693:31: error: '%s' directive output may be truncated writing 
+up to 4095 bytes into a region of size 4086 [-Werror=format-truncation=]
+
+
+打开/qemu/config-host.mak
+搜索QEMU_CFLAGS，在最后添加：-Wno-format-truncation -Wno-deprecated-declarations
+
+
+issue2:
+qga/commands-posix.c:633:13: error: In the GNU C Library, "major" is defined
+ by <sys/sysmacros.h>. For historical compatibility, it is
+ currently defined by <sys/types.h> as well, but we plan to
+ remove this soon. To use "major", include <sys/sysmacros.h>
+ directly.
+
+ 打开/qemu/qga/commands-posix.c
+ 在头文件那里添加：
+ #include <sys/sysmacros.h>
+
+issue3:
+Triple fault. Halting for inspection via QEMU monitor.
+切换到gcc4.8 和 g++4.8版本。
+https://www.jianshu.com/p/876934a6401f
+
+
+
