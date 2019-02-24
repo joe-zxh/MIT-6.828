@@ -48,7 +48,7 @@ seta20.2:
   # identical to their physical addresses, so that the 
   # effective memory map does not change during the switch.
   # 从实模式 转换 为 保护模式
-  # 转入保护模式，这里需要指定一个临时的GDT，来翻译逻辑地址。
+  # 转入保护模式，这里需要指定一个临时的GDT，来翻译逻辑地址。(开启了一个 "傀儡"的分段机制，因为段选择子实际上索引出来的基地址就是0)
   # 这里使用的GDT通过gdtdesc段定义，它翻译得到的物理地址和虚拟地址相同，所以转换过程中内存映射不会改变
   lgdt    gdtdesc
   movl    %cr0, %eax
@@ -63,7 +63,8 @@ seta20.2:
 # INDEX　　　　　　　　   TI     CPL
 # 0000 0000 0000 1      00      0
 #　INDEX代表GDT中的索引，TI代表使用GDTR中的GDT， CPL代表处于特权级。
-# 索引出来，也就是 code seg，它的基地址就是０.
+# 索引出来，也就是 code seg，它的基地址就是０. (不难发现PROT_MODE_DSEG的index=2)
+# (但其实，无论是代码段 还是 数据段，他们的基地址 都是0)
 #　加上偏移量protcseg，就是跳到下一行代码
 
   .code32                     # Assemble for 32-bit mode

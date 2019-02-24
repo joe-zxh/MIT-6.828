@@ -67,7 +67,9 @@ entry:
 	# 可以通过 另外的程序 来查看相应 的高的物理地址的内容。
 
 	# Now paging is enabled, but we're still running at a low EIP
-	# (why is this okay? 因为开了分页了？).  Jump up above KERNBASE before entering
+	# (why is this okay?).
+	# 它说的low EIP，应该指的是EIP(32位)的低16位。这是因为现在需要用到的地址只有0~4MB(2^16)
+	# Jump up above KERNBASE before entering
 	# C code.
 	mov	$relocated, %eax
 	jmp	*%eax

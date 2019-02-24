@@ -171,6 +171,7 @@ symbol table的结构：
 
 
 symbol table的结构示意：
+```
 SO_0  
 ---FUN_0  
     ---SLINE_0  
@@ -196,8 +197,7 @@ SO_1
     ---SLINE_2  
     ...  
 ...  
-
-
+```
 
 那么如何根据esp来获取，函数所在的文件、函数名、行号呢？debuginfo_eip的的过程就解释了：
 
