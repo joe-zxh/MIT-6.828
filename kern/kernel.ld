@@ -11,7 +11,8 @@ SECTIONS
 	. = 0xF0100000;
 
 	/* AT(...) gives the load address of this section, which tells
-	   the boot loader where to load the kernel in physical memory */
+	   the boot loader where to load the kernel in physical memory 
+	   链接地址在0xF0100000 物理地址在0x100000*/
 	.text : AT(0x100000) {
 		*(.text .stub .text.* .gnu.linkonce.t.*)
 	}
