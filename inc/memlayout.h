@@ -12,11 +12,11 @@
  */
 
 // Global descriptor numbers
-#define GD_KT     0x08     // kernel text
-#define GD_KD     0x10     // kernel data
-#define GD_UT     0x18     // user text
-#define GD_UD     0x20     // user data
-#define GD_TSS0   0x28     // Task segment selector for CPU 0
+#define GD_KT     0x08     // kernel text 0000 1000
+#define GD_KD     0x10     // kernel data 0001 0000
+#define GD_UT     0x18     // user text   0001 1000
+#define GD_UD     0x20     // user data   0010 0000
+#define GD_TSS0   0x28     // Task segment selector for CPU 0   0010 1000
 
 /*
  * Virtual memory map:                                Permissions
@@ -89,19 +89,19 @@
 // At IOPHYSMEM (640K) there is a 384K hole for I/O.  From the kernel,
 // IOPHYSMEM can be addressed at KERNBASE + IOPHYSMEM.  The hole ends
 // at physical address EXTPHYSMEM.
-#define IOPHYSMEM	0x0A0000
+#define IOPHYSMEM	0x0A0000 //物理地址：https://www.cnblogs.com/fatsheep9146/p/5078102.html
 #define EXTPHYSMEM	0x100000
 
 // Kernel stack.
-#define KSTACKTOP	KERNBASE
+#define KSTACKTOP	KERNBASE //0xF0000000
 #define KSTKSIZE	(8*PGSIZE)   		// size of a kernel stack
 #define KSTKGAP		(8*PGSIZE)   		// size of a kernel stack guard
 
 // Memory-mapped IO.
-#define MMIOLIM		(KSTACKTOP - PTSIZE)
-#define MMIOBASE	(MMIOLIM - PTSIZE)
+#define MMIOLIM		(KSTACKTOP - PTSIZE) //MM-IO的终止位置：0xf0000000-0x400000 = 0xefc00000
+#define MMIOBASE	(MMIOLIM - PTSIZE) //MM-IO的起始位置： 0xef800000
 
-#define ULIM		(MMIOBASE)
+#define ULIM		(MMIOBASE) //0xef800000: user space最高的终止位置，也就是MM-IO的起始位置
 
 /*
  * User read-only mappings! Anything below here til UTOP are readonly to user.

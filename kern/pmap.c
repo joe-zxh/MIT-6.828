@@ -32,6 +32,10 @@ nvram_read(int r)
 static void
 i386_detect_memory(void)
 {
+	//jos把整个物理内存空间划分成3个部分：
+	//从0x00000~0xA0000，这部分也叫basemem，是可用的
+	//0xA0000~0x100000，这部分叫做IO hole，是不可用的，主要被用来分配给外部设备了。
+	//0x100000~0x，这部分叫做extmem，是可用的，这是最重要的内存区域。
 	size_t basemem, extmem, ext16mem, totalmem;
 
 	// Use CMOS calls to measure available base & extended memory.
@@ -82,7 +86,7 @@ static void check_page_installed_pgdir(void);
 // This function may ONLY be used during initialization,
 // before the page_free_list list has been set up.
 static void *
-boot_alloc(uint32_t n)
+boot_alloc(uint32_t n) //这个boot_alloc是在一开始的时候被调用了一次，所以是，可以这么直接分配内存的。
 {
 	static char *nextfree;	// virtual address of next byte of free memory
 	char *result;
@@ -94,7 +98,7 @@ boot_alloc(uint32_t n)
 	// to any kernel code or global variables.
 	if (!nextfree) {
 		extern char end[];
-		nextfree = ROUNDUP((char *) end, PGSIZE);
+		nextfree = ROUNDUP((char *) end, PGSIZE);//对齐到PGSIZE
 	}
 
 	// Allocate a chunk large enough to hold 'n' bytes, then update
@@ -102,8 +106,12 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-
-	return NULL;
+	result = nextfree;
+	nextfree = ROUNDUP(nextfree+n, PGSIZE);
+	if((uint32_t)nextfree-KERNBASE>(npages*PGSIZE)){
+		panic("Out of memory!\n");
+	}
+	return result;
 }
 
 // Set up a two-level page table:
@@ -130,12 +138,14 @@ mem_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
 	kern_pgdir = (pde_t *) boot_alloc(PGSIZE);
+	//pde_t是4个字节的，PGSIZE是4096，即boot_alloc(PGSIZE)分配了4096个字节的内存。
+	//所以一共有1024个page directory entry
 	memset(kern_pgdir, 0, PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
 	// Recursively insert PD in itself as a page table, to form
 	// a virtual page table at virtual address UVPT.
-	// (For now, you don't have understand the greater purpose of the
+	// (For now, you don't have to understand the greater purpose of the
 	// following line.)
 
 	// Permissions: kernel R, user R

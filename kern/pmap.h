@@ -23,9 +23,10 @@ extern pde_t *kern_pgdir;
  * non-kernel virtual address.
  */
 #define PADDR(kva) _paddr(__FILE__, __LINE__, kva)
+//__FILE__是当前程序的文件名，__LINE__是当前行号。用来报错的。
 
 static inline physaddr_t
-_paddr(const char *file, int line, void *kva)
+_paddr(const char *file, int line, void *kva)//physical address
 {
 	if ((uint32_t)kva < KERNBASE)
 		_panic(file, line, "PADDR called with invalid kva %08lx", kva);
