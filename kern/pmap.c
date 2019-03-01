@@ -317,8 +317,8 @@ page_alloc(int alloc_flags)
 }
 
 //
-// Return a page to the free list.
-// (This function should only be called when pp->pp_ref reaches 0.)
+// 把一个物理页释放，放到free list中
+// 需要先检查该物理页的引用数是否为0
 //
 void
 page_free(struct PageInfo *pp)
@@ -334,8 +334,7 @@ page_free(struct PageInfo *pp)
 }
 
 //
-// Decrement the reference count on a page,
-// freeing it if there are no more refs.
+// 对一个物理页的引用数进行自减，如果是0，那么就释放它
 //
 void
 page_decref(struct PageInfo* pp)
@@ -344,27 +343,25 @@ page_decref(struct PageInfo* pp)
 		page_free(pp);
 }
 
-// Given 'pgdir', a pointer to a page directory, pgdir_walk returns
-// a pointer to the page table entry (PTE) for linear address 'va'.
-// This requires walking the two-level page table structure.
+// 给定一个指向页目录的指针pgdir，函数pgdir_walk通过现行地址va返回
+// 一个指向page table entry的指针。
+// 这需要 2级页表的操作(page dir entry+page table entry)
 //
-// The relevant page table page might not exist yet.
-// If this is true, and create == false, then pgdir_walk returns NULL.
-// Otherwise, pgdir_walk allocates a new page table page with page_alloc.
-//    - If the allocation fails, pgdir_walk returns NULL.
-//    - Otherwise, the new page's reference count is incremented,
-//	the page is cleared,
-//	and pgdir_walk returns a pointer into the new page table page.
+// 对应的页表页(存放页表的一个物理页) 可能还不存在
+// 如果对应的页表页 不存在，且create==false，那么返回NULL
+// 否则，通过page_alloc分配一个新的页表页：
+// 			如果分配失败，那么返回NULL
+//			否则，分配到的页表页的索引数++
+//		新分配的页表页清0，染回指向这个页表页的指针
 //
-// Hint 1: you can turn a PageInfo * into the physical address of the
-// page it refers to with page2pa() from kern/pmap.h.
+// 提示1：你可以通过page2pa()来把PageInfo*转换成一个页的物理地址
 //
+// 提示2：x86 MMU会检查页目录 和 页表的 权限位，所以把权限位设得更宽松一点也是安全的
 // Hint 2: the x86 MMU checks permission bits in both the page directory
 // and the page table, so it's safe to leave permissions in the page
 // directory more permissive than strictly necessary.
 //
-// Hint 3: look at inc/mmu.h for useful macros that manipulate page
-// table and page directory entries.
+// 提示3：考虑使用inc/mmu.h中的操作页表和页目录项的 宏。
 //
 pte_t * pgdir_walk(pde_t *pgdir, const void * va, int create)
 {

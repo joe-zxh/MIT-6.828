@@ -17,6 +17,7 @@ extern size_t npages;
 extern pde_t *kern_pgdir;
 
 
+// kernel virtual address: KERNBASE之上的虚拟地址
 /* This macro takes a kernel virtual address -- an address that points above
  * KERNBASE, where the machine's maximum 256MB of physical memory is mapped --
  * and returns the corresponding physical address.  It panics if you pass it a
@@ -39,7 +40,7 @@ _paddr(const char *file, int line, void *kva)//physical address
 
 static inline void*
 _kaddr(const char *file, int line, physaddr_t pa)
-{
+{//好像只能转一部分的(f0100000->100000)，其他的要用页表来转吧???
 	if (PGNUM(pa) >= npages)
 		_panic(file, line, "KADDR called with invalid pa %08lx", pa);
 	return (void *)(pa + KERNBASE);
@@ -67,6 +68,7 @@ static inline physaddr_t
 page2pa(struct PageInfo *pp) // page to physical address
 {
 	return (pp - pages) << PGSHIFT;
+	//pp-page出来的是偏移，也就是pp在pages里面的index值，右移12位就是物理地址了
 }
 
 static inline struct PageInfo*
@@ -79,7 +81,7 @@ pa2page(physaddr_t pa)
 
 static inline void*
 page2kva(struct PageInfo *pp) //page to virtual address
-{ //好像只能转一部分的(f0100000->100000)，其他的要用页表来转吧。
+{ 
 	return KADDR(page2pa(pp));
 }
 
