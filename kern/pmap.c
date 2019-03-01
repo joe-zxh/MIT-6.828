@@ -352,7 +352,7 @@ page_decref(struct PageInfo* pp)
 // 否则，通过page_alloc分配一个新的页表页：
 // 			如果分配失败，那么返回NULL
 //			否则，分配到的页表页的索引数++
-//		新分配的页表页清0，染回指向这个页表页的指针
+//		新分配的页表页清0，返回指向这个页表页的指针
 //
 // 提示1：你可以通过page2pa()来把PageInfo*转换成一个页的物理地址
 //
@@ -365,29 +365,26 @@ page_decref(struct PageInfo* pp)
 //
 pte_t * pgdir_walk(pde_t *pgdir, const void * va, int create)
 {
-	unsigned int page_off;
-	pte_t * page_base = NULL;
-	struct PageInfo* new_page = NULL;
-	
-	unsigned int dic_off = PDX(va); // page directory index
-	pde_t * dic_entry_ptr = pgdir + dic_off;// 拿到相应的page directory entry
+	pde_t* pde = pgdir + PDX(va);// page directory entry
 
-	if(!(*dic_entry_ptr & PTE_P))
-	{
-		if(create)
-		{
-			new_page = page_alloc(1);
-			if(new_page == NULL) return NULL;
-			new_page->pp_ref++;
-			*dic_entry_ptr = (page2pa(new_page) | PTE_P | PTE_W | PTE_U);
+	if(!(*pde & PTE_P)){//检查 对应的页表页 是否存在
+		if(create){
+			struct PageInfo* newPageTablePage = page_alloc(1);
+			if (newPageTablePage==NULL){ //分配失败
+				return NULL;
+			}else{
+				newPageTablePage->pp_ref++;
+				*pde = (page2pa(newPageTablePage) | PTE_P | PTE_W | PTE_U);
+			}
+		}else{
+			return NULL;
 		}
-		else
-			return NULL;      
-	}  
+	}
 
-	page_off = PTX(va);
-	page_base = KADDR(PTE_ADDR(*dic_entry_ptr));
-	return &page_base[page_off];
+	pte_t* pte = NULL;
+	pte = KADDR(PTE_ADDR(*pde));
+
+	return &pte[PTX(va)];
 }
 
 //
