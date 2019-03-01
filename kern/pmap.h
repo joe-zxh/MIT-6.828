@@ -64,7 +64,7 @@ void	page_decref(struct PageInfo *pp);
 void	tlb_invalidate(pde_t *pgdir, void *va);
 
 static inline physaddr_t
-page2pa(struct PageInfo *pp)
+page2pa(struct PageInfo *pp) // page to physical address
 {
 	return (pp - pages) << PGSHIFT;
 }
@@ -78,8 +78,8 @@ pa2page(physaddr_t pa)
 }
 
 static inline void*
-page2kva(struct PageInfo *pp)
-{
+page2kva(struct PageInfo *pp) //page to virtual address
+{ //好像只能转一部分的(f0100000->100000)，其他的要用页表来转吧。
 	return KADDR(page2pa(pp));
 }
 

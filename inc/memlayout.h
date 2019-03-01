@@ -176,10 +176,9 @@ struct PageInfo {
 	// Next page on the free list.
 	struct PageInfo *pp_link;
 
-	// pp_ref is the count of pointers (usually in page table entries)
-	// to this page, for pages allocated using page_alloc.
-	// Pages allocated at boot time using pmap.c's
-	// boot_alloc do not have valid reference count fields.
+	// pp_ref是指向这个page的指针(通常是页表中的entry)的个数
+	// 对于物理页的分配，要使用page_alloc
+	// 在OS启动时，使用boot_alloc分配的物理页，还没有 有效的pp_ref的域的。
 
 	uint16_t pp_ref;
 };
