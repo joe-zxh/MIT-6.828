@@ -164,6 +164,10 @@ mem_init(void)
 	pages = (struct PageInfo *) boot_alloc(npages * sizeof(struct PageInfo));
 	memset(pages, 0, npages * sizeof(struct PageInfo));
 
+	//为envs数组分配内存空间
+	envs = (struct Env*)boot_alloc(NENV*sizeof(struct Env));
+	memset(envs, 0, NENV * sizeof(struct Env));
+
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
@@ -218,6 +222,9 @@ mem_init(void)
 	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
 	boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 	boot_map_region(kern_pgdir, KERNBASE, 0xffffffff - KERNBASE, 0, PTE_W);
+
+	// lab3: 在页表中设置UENVS的映射关系
+	boot_map_region(kern_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
