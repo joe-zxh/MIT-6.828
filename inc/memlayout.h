@@ -48,7 +48,7 @@
  * ULIM, MMIOBASE -->  +------------------------------+ 0xef800000
  *                     |  Cur. Page Table (User R-)   | R-/R-  PTSIZE
  *    UVPT      ---->  +------------------------------+ 0xef400000
- *                     |          RO PAGES            | R-/R-  PTSIZE
+ *                     |   RO PAGES（存pages的地方）    | R-/R-  PTSIZE
  *    UPAGES    ---->  +------------------------------+ 0xef000000
  *                     |           RO ENVS            | R-/R-  PTSIZE
  * UTOP,UENVS ------>  +------------------------------+ 0xeec00000

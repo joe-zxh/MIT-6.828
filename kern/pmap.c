@@ -147,10 +147,12 @@ mem_init(void)
 	// Permissions: kernel R, user R
 	// 因为UVPT的位置处于UTOP～ULIM之间，所以对用户来说是只读的。
 	kern_pgdir[PDX(UVPT)] = PADDR(kern_pgdir) | PTE_U | PTE_P;
+	// 相当于boot_map_region(kern_pgdir, UVPT, PGSIZE, PADDR(kern_pgdir), PTE_U | PTE_P);
+	// 但现在 还不能使用boot_map_region，所以需要通过手动来设置。
+	
 	//页目录的物理位置也是需要页表来索引的。
 	//UVPT的位置是一个页表，它存的第一项 就是有关页目录的物理位置的索引。
 	//而页目录的物理位置为PADDR(kern_pgdir)
-	//但是为什么不直接用PADDR(kern_pgdir)来索引呢???todo 好像说不太好???
 
 	//////////////////////////////////////////////////////////////////////
 	// 分配npages个元素的数组pages，元素的类型为'struct PageInfo'

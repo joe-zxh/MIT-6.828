@@ -48,7 +48,11 @@
 #define PGSIZE		4096		// bytes mapped by a page
 #define PGSHIFT		12		// log2(PGSIZE)
 
-#define PTSIZE		(PGSIZE*NPTENTRIES) // 4096*1024=0x400000: page table size: bytes mapped by a page directory entry
+#define PTSIZE		(PGSIZE*NPTENTRIES) 
+// 4096*1024=0x400000: 一个页表映射到的大小。
+// 注意：一个页表的大小为4096(一个页表能映射1024个页×4字节=4096字节)
+// 一个页表能映射的大小为1024×PGSIZE=PTSIZE
+//page table size: bytes mapped by a page directory entry
 #define PTSHIFT		22		// log2(PTSIZE)
 
 #define PTXSHIFT	12		// offset of PTX in a linear address
