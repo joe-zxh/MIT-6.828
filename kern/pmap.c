@@ -444,6 +444,8 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 		return -E_NO_MEM;
 
     pp->pp_ref++;
+	//pp->pp_ref++这条语句，一定要放在page_remove之前，这是为了处理一种特殊情况：pp已经映射到va上了
+	//因为page_remove应该会--
     if((*entry) & PTE_P) //已经有一个物理页pp被映射在这个va上了
     {
         tlb_invalidate(pgdir, va);
@@ -455,17 +457,18 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	return 0;
 }
 
-//
-// Return the page mapped at virtual address 'va'.
-// If pte_store is not zero, then we store in it the address
-// of the pte for this page.  This is used by page_remove and
-// can be used to verify page permissions for syscall arguments,
-// but should not be used by most callers.
-//
-// Return NULL if there is no page mapped at va.
-//
-// Hint: the TA solution uses pgdir_walk and pa2page.
-//
+// 
+// 返回映射在va上的物理页
+// 如果pte_store不是NULL时，那么我们 把该物理页的pte的地址 存到pte_store中
+// page_remove的时候需要pte_store,
+// 或者 别的系统调用的 参数中需要 page的权限时，需要pte_store。
+// This is used by page_remove and
+// can be used to verify page permissions for syscall arguments
+// 
+// 如果va上没有映射物理页，那么返回NULL
+// 
+// 提示：TA的解法中 使用了pgdir_walk和pa2page
+// 
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
@@ -476,12 +479,11 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
     entry = pgdir_walk(pgdir, va, 0);
     if(entry == NULL)
         return NULL;
-    if(!(*entry & PTE_P))
+    if(!(*entry & PTE_P)) //va上没有映射物理页
         return NULL;
     
     ret = pa2page(PTE_ADDR(*entry));
-    if(pte_store != NULL)
-    {
+    if(pte_store != NULL){
         *pte_store = entry;
     }
     return ret;

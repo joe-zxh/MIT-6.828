@@ -163,16 +163,14 @@ extern volatile pde_t uvpd[];     // VA of current page directory
 #endif
 
 /*
- * Page descriptor structures, mapped at UPAGES.
- * Read/write to the kernel, read-only to user programs.
+ * 页描述符数据结构，映射在虚拟内存为UPAGES的位置。
+ * 对于内核，这部分是可读写的；对于用户，这部分是只读的。
  *
- * Each struct PageInfo stores metadata for one physical page.
- * Is it NOT the physical page itself, but there is a one-to-one
- * correspondence between physical pages and struct PageInfo's.
- * You can map a struct PageInfo * to the corresponding physical address
- * with page2pa() in kern/pmap.h.
+ * 每个PageInfo结构 存储了一个 物理页的元信息
+ * 它不是实际物理页，但和 物理页有一一对应的关系。
+ * 你可以通过kern/pmap.h中的page2pa()函数来 通过PageInfo得到 对应的物理地址
  */
-struct PageInfo {
+struct PageInfo { //就是物理页
 	// Next page on the free list.
 	struct PageInfo *pp_link;
 

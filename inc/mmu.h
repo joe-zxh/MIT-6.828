@@ -73,6 +73,7 @@
 #define PTE_SYSCALL	(PTE_AVAIL | PTE_P | PTE_W | PTE_U)
 
 // Address in page table or page directory entry
+// page table entry 或 page directory entry中的 物理地址
 #define PTE_ADDR(pte)	((physaddr_t) (pte) & ~0xFFF)
 
 // Control Register flags
