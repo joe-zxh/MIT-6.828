@@ -63,7 +63,7 @@ serial_intr(void)
 }
 
 static void
-serial_putc(int c)
+serial_putc(int c) //把一个字符输出到串口
 {
 	int i;
 
@@ -109,7 +109,7 @@ serial_init(void)
 // page.
 
 static void
-lpt_putc(int c)
+lpt_putc(int c) //把字符传给并口设备
 {
 	int i;
 
@@ -127,6 +127,8 @@ lpt_putc(int c)
 
 static unsigned addr_6845;
 static uint16_t *crt_buf;
+//指向物理地址为0xb8000的位置，物理内存的 0xa0000 到 0xc0000 这 128KB 的空间是留给 VGA 显示缓存
+//在JOS中，显示屏规定为 25 行，每行可以输出 80 个字符，由于每个字符实际上占显存中的两个字节(字符ASCII码和字符属性)，于是物理内存中从 0xb8000 到 0xb8fa0 之间的内容都可以用字符的形式在屏幕上显示出来。
 static uint16_t crt_pos;
 
 static void
@@ -159,15 +161,15 @@ cga_init(void)
 
 
 
-static void
+static void //把字符输出到cga设备上，即显示屏
 cga_putc(int c)
 {
 	// if no attribute given, then use black on white
-	if (!(c & ~0xFF))
+	if (!(c & ~0xFF)) //判断字符是否在255之前(合法字符)
 		c |= 0x0700;
 
 	switch (c & 0xff) {
-	case '\b':
+	case '\b': //退格键
 		if (crt_pos > 0) {
 			crt_pos--;
 			crt_buf[crt_pos] = (c & ~0xff) | ' ';
@@ -192,6 +194,7 @@ cga_putc(int c)
 	}
 
 	// What is the purpose of this?
+	// 缓冲已满，覆盖旧的已经使用的内容。
 	if (crt_pos >= CRT_SIZE) {
 		int i;
 
@@ -202,6 +205,7 @@ cga_putc(int c)
 	}
 
 	/* move that little blinky thing */
+	// 将缓冲区的内容输出到显示屏
 	outb(addr_6845, 14);
 	outb(addr_6845 + 1, crt_pos >> 8);
 	outb(addr_6845, 15);

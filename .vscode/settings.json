@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "kclock.h": "c",
+        "pmap.h": "c",
+        "memlayout.h": "c",
+        "mmu.h": "c"
+    }
+}
