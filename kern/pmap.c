@@ -489,28 +489,25 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
     return ret;
 }
 
+// 取消物理页 和 va之间的映射
+// 如果va上没有映射物理页，那么 直接返回
 //
-// Unmaps the physical page at virtual address 'va'.
-// If there is no physical page at that address, silently does nothing.
-//
-// Details:
-//   - The ref count on the physical page should decrement.
-//   - The physical page should be freed if the refcount reaches 0.
-//   - The pg table entry corresponding to 'va' should be set to 0.
-//     (if such a PTE exists)
-//   - The TLB must be invalidated if you remove an entry from
-//     the page table.
-//
-// Hint: The TA solution is implemented using page_lookup,
-// 	tlb_invalidate, and page_decref.
-//
+// 细节：
+// 		- 物理页上的ref计数需要-1
+// 		- 如果物理页的ref计数==0，那么这个物理页要被释放
+// 		- 对应va的页表项要设为0(如果存在的话)
+// 		- TLB要禁用这条va的映射
+// 
+// 提示：TA的解法中，使用了page_lookup, tlb_invalidate 和 page_decref
+// 
 void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
 	pte_t *pte = NULL;
     struct PageInfo *page = page_lookup(pgdir, va, &pte);
-    if(page == NULL) return ;    
+    if(page == NULL)
+		return;    
     
     page_decref(page);
     tlb_invalidate(pgdir, va);
