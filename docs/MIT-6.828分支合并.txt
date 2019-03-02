@@ -1,0 +1,10 @@
+
+
+在本地创建新的分支，并切换到新的分支：
+git checkout -b labNew_joe origin/labNew
+
+合并旧的分支：
+git merge labOld_joe
+
+push到远程：
+git push MIT-6.828 labNew_joe:labNew_joe
