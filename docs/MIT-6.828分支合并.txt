@@ -7,4 +7,4 @@ git checkout -b labNew_joe origin/labNew
 git merge labOld_joe
 
 push到远程：
-git push MIT-6.828 labNew_joe:labNew_joe
+git push -u MIT-6.828 labNew_joe:labNew_joe
