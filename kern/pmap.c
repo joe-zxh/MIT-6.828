@@ -387,58 +387,53 @@ pte_t * pgdir_walk(pde_t *pgdir, const void * va, int create)
 	return &pte[PTX(va)];
 }
 
-//
-// Map [va, va+size) of virtual address space to physical [pa, pa+size)
-// in the page table rooted at pgdir.  Size is a multiple of PGSIZE, and
-// va and pa are both page-aligned.
-// Use permission bits perm|PTE_P for the entries.
-//
-// This function is only intended to set up the ``static'' mappings
-// above UTOP. As such, it should *not* change the pp_ref field on the
-// mapped pages.
-//
-// Hint: the TA solution uses pgdir_walk
+
+// 
+// 在页表中，把虚拟内存[va, va+size)映射到物理内存[pa, pa+size)
+// 参数size, va, pa都是PGSIZE(4096)的倍数
+// PDE中对PTE的权限 设置为perm|PTE_P
+// 
+// 这个函数 仅仅是用来 设置UTOP以上的虚拟内存的静态映射的。
+// 静态是说：在操作系统的运行过程中，这部分的映射是不会改变的
+// 这个函数也不允许改变已经映射好的物理页的pp_ref
+// 
+// 提示：助教的解法中使用了pgdir_walk
+// 
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
 	int nadd;
-    pte_t *entry = NULL;
+    pte_t *pageTableEntry = NULL;
     for(nadd = 0; nadd < size; nadd += PGSIZE)
     {
-        entry = pgdir_walk(pgdir,(void *)va, 1); //Get the table entry of this page.
-        *entry = (pa | perm | PTE_P);
+        pageTableEntry = pgdir_walk(pgdir,(void *)va, 1); //Get the table entry of this page.
+        *pageTableEntry = (pa | perm | PTE_P);
                 
         pa += PGSIZE;
         va += PGSIZE;
 	}
 }
 
-//
-// Map the physical page 'pp' at virtual address 'va'.
-// The permissions (the low 12 bits) of the page table entry
-// should be set to 'perm|PTE_P'.
-//
-// Requirements
-//   - If there is already a page mapped at 'va', it should be page_remove()d.
-//   - If necessary, on demand, a page table should be allocated and inserted
-//     into 'pgdir'.
-//   - pp->pp_ref should be incremented if the insertion succeeds.
-//   - The TLB must be invalidated if a page was formerly present at 'va'.
-//
-// Corner-case hint: Make sure to consider what happens when the same
-// pp is re-inserted at the same virtual address in the same pgdir.
-// However, try not to distinguish this case in your code, as this
-// frequently leads to subtle bugs; there's an elegant way to handle
-// everything in one code path.
-//
-// RETURNS:
-//   0 on success
-//   -E_NO_MEM, if page table couldn't be allocated
-//
-// Hint: The TA solution is implemented using pgdir_walk, page_remove,
-// and page2pa.
-//
+// 
+// 把物理页pp映射到虚拟地址va上
+// page table entry的权限位设置为perm|PTE_P
+// 
+// 要求：
+// 		- 如果已经有一个物理页映射在va上了，那么这个物理页要被移除page_remove()
+// 		- 如果需要的话，可以分配一个页表，然后农户插入到pgdir中
+// 		- 如果映射成功，那么pp->pp_ref要自增一下。
+// 		- The TLB must be invalidated if a page was formerly present at 'va'.
+// 
+// 边界情况的提示：想想物理页pp在同一个pgdir中，重新插入到相同va时的情况。
+// 但其实这种情况并不需要单独考虑，有一个简洁的方式来处理这种情况。
+// 
+// 返回值：
+// 		成功，返回0
+// 		页表不能分配，返回E_NO_MEM  (-E_NO_MEM, if page table couldn't be allocated)
+// 
+// 提示：TA的解法中使用了pgdir_walk, page_removehe page2pa
+// 
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
@@ -449,7 +444,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 		return -E_NO_MEM;
 
     pp->pp_ref++;
-    if((*entry) & PTE_P)             //If this virtual address is already mapped.
+    if((*entry) & PTE_P) //已经有一个物理页pp被映射在这个va上了
     {
         tlb_invalidate(pgdir, va);
         page_remove(pgdir, va);
