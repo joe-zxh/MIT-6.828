@@ -477,8 +477,8 @@ void
 env_pop_tf(struct Trapframe *tf)
 {
 	asm volatile(
-		"\tmovl %0,%%esp\n"
-		"\tpopal\n"
+		"\tmovl %0,%%esp\n" //把tf的内容放到esp中
+		"\tpopal\n" //通过pop esp中的内容，恢复所有的r32的寄存器
 		"\tpopl %%es\n"
 		"\tpopl %%ds\n"
 		"\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
@@ -496,37 +496,32 @@ env_pop_tf(struct Trapframe *tf)
 void
 env_run(struct Env *e)
 {
-	// Step 1: 如果这是一个上下文的切换：
+	// Step1: 如果这是一个上下文的切换：
 	// 		1. 设置当前正在运行(ENV_RUNNING)的进程的状态为ENV_RUNNABLE
 	// 		2. 设置curenv为新的环境
+	// 		3. 设置curenv的状态为ENV_RUNNING
+	// 		4. 更新它的env_runs的计数(估计是用来做一些 换入、换出的策略的)
+	// 		5. 用lcr3()来切换到它的地址空间
 	// 
+	// Step2: 使用env_pop_tf()函数，来恢复 进程的寄存器，并 进入用户模式 
 	// 
-	// 
-	// 
-	// 
-	// 
-	// 
-
-
-
-	// Step 1: If this is a context switch (a new environment is running):
-	//	   1. Set the current environment (if any) back to
-	//	      ENV_RUNNABLE if it is ENV_RUNNING (think about
-	//	      what other states it can be in),
-	//	   2. Set 'curenv' to the new environment,
-	//	   3. Set its status to ENV_RUNNING,
-	//	   4. Update its 'env_runs' counter,
-	//	   5. Use lcr3() to switch to its address space.
-	// Step 2: Use env_pop_tf() to restore the environment's
-	//	   registers and drop into user mode in the
-	//	   environment.
-
-	// Hint: This function loads the new environment's state from
-	//	e->env_tf.  Go back through the code you wrote above
-	//	and make sure you have set the relevant parts of
-	//	e->env_tf to sensible values.
-
+	// 提示：这个函数 通过e->env_tf来 加载新的进程的状态。
+	// 检查你之前写的代码，确保你 设置了e->env_tf的相关内容
+	// 其中，我们在load_icode中设置了eip，也就是程序的入口。
+	// 在env_alloc中，设置了别的寄存器的内容。
+	
 	// LAB 3: Your code here.
+	if(curenv != NULL && curenv->env_status == ENV_RUNNING) {
+        curenv->env_status = ENV_RUNNABLE;
+    }
+
+    curenv = e;
+    curenv->env_status = ENV_RUNNING;
+    curenv->env_runs++;
+    lcr3(PADDR(curenv->env_pgdir));
+
+    env_pop_tf(&curenv->env_tf);
+	// 通过e->env_tf的内容 来恢复寄存器，实现切换进程的上下文。
 
 	panic("env_run not yet implemented");
 }
