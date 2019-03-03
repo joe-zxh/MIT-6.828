@@ -128,7 +128,7 @@ env_init(void)
     env_init_percpu();
 }
 
-// Load GDT and segment descriptors.
+// 加载新的全局描述符表(GDT) 和 段描述符(segment descriptor)
 void
 env_init_percpu(void)
 {
