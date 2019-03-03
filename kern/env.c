@@ -266,23 +266,38 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	return 0;
 }
 
-//
-// Allocate len bytes of physical memory for environment env,
-// and map it at virtual address va in the environment's address space.
+// 
+// 为环境env分配len字节的物理内存，并把它映射到env的虚拟地址中va的位置
 // Does not zero or otherwise initialize the mapped pages in any way.
-// Pages should be writable by user and kernel.
-// Panic if any allocation attempt fails.
-//
+// 对于分配到的物理页，不要置0或者初始化。
+// 物理页对于用户和kernel来说，都是可写的。
+// 如果分配失败，那么抛出异常。
+// 
 static void
 region_alloc(struct Env *e, void *va, size_t len)
 {
 	// LAB 3: Your code here.
 	// (But only if you need it for load_icode.)
-	//
-	// Hint: It is easier to use region_alloc if the caller can pass
-	//   'va' and 'len' values that are not page-aligned.
-	//   You should round va down, and round (va + len) up.
-	//   (Watch out for corner-cases!)
+	// 
+	// 提示：调用者 调用region_alloc时，传递的va和len参数，可能不是对齐的(page size的倍数)
+	// 需要先将va往下对齐，把va+len往上对齐
+	// (注意 边界情况!)
+	// 
+	void* start = (void *)ROUNDDOWN((uint32_t)va, PGSIZE);
+    void* end = (void *)ROUNDUP((uint32_t)va+len, PGSIZE);
+    struct PageInfo *p = NULL;
+    void* i;
+    int r;
+    for(i=start; i<end; i+=PGSIZE){
+        p = page_alloc(0);
+        if(p == NULL)
+            panic(" region alloc, allocation failed.");
+
+        r = page_insert(e->env_pgdir, p, i, PTE_W | PTE_U);
+        if(r != 0) {
+            panic("region alloc error");
+        }
+    }
 }
 
 //
