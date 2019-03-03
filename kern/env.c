@@ -300,60 +300,77 @@ region_alloc(struct Env *e, void *va, size_t len)
     }
 }
 
-//
-// Set up the initial program binary, stack, and processor flags
-// for a user process.
-// This function is ONLY called during kernel initialization,
-// before running the first user-mode environment.
-//
-// This function loads all loadable segments from the ELF binary image
-// into the environment's user memory, starting at the appropriate
-// virtual addresses indicated in the ELF program header.
-// At the same time it clears to zero any portions of these segments
-// that are marked in the program header as being mapped
-// but not actually present in the ELF file - i.e., the program's bss section.
-//
-// All this is very similar to what our boot loader does, except the boot
-// loader also needs to read the code from disk.  Take a look at
-// boot/main.c to get ideas.
-//
-// Finally, this function maps one page for the program's initial stack.
-//
-// load_icode panics if it encounters problems.
-//  - How might load_icode fail?  What might be wrong with the given input?
+// 
+// 对一个用户进程，设置 初始的 二进制程序，栈 和 处理器的标志位
+// 这个程序 仅仅 是在内核初始化时，在运行第一个 用户环境 前调用的。
+// 
+// 这个函数 往用户的地址空间 装载了所有 可以装载的ELF二进制镜像的 段(segment)。
+// 起始的虚拟地址的 位置是在ELF程序的头部说明的。
+// 与此同时，对 那些在进程头部 标记说 映射但实际不存在的内容 清空置0
+// (也就是bss section)
+// 
+// 这些操作 和 boot loader 过程很类似，但 boot loader需要从磁盘来读取代码
+// 可以 通过boot/main.c来获取 一些idea
+// 
+// 最后，这个函数 为程序的初始栈 映射了一个物理页。
+// 
+// 如果load_icode出错，那么 跑出异常。
+// 		- load_icode会出现什么错误呢？输入的参数 会有什么潜在的问题吗？
 //
 static void
 load_icode(struct Env *e, uint8_t *binary)
 {
-	// Hints:
-	//  Load each program segment into virtual memory
-	//  at the address specified in the ELF segment header.
-	//  You should only load segments with ph->p_type == ELF_PROG_LOAD.
-	//  Each segment's virtual address can be found in ph->p_va
-	//  and its size in memory can be found in ph->p_memsz.
-	//  The ph->p_filesz bytes from the ELF binary, starting at
-	//  'binary + ph->p_offset', should be copied to virtual address
-	//  ph->p_va.  Any remaining memory bytes should be cleared to zero.
-	//  (The ELF header should have ph->p_filesz <= ph->p_memsz.)
-	//  Use functions from the previous lab to allocate and map pages.
-	//
-	//  All page protection bits should be user read/write for now.
-	//  ELF segments are not necessarily page-aligned, but you can
-	//  assume for this function that no two segments will touch
-	//  the same virtual page.
-	//
-	//  You may find a function like region_alloc useful.
-	//
-	//  Loading the segments is much simpler if you can move data
-	//  directly into the virtual addresses stored in the ELF binary.
+	// 提示：
+	//   - 把程序 的每个segment都装载进 ELF头部指定的虚拟内存中
+	// 	 - 只能加载那些ph->p_type==ELF_PROG_LOAD的segment
+	//   - segment的加载地址为ph->p_va，大小为ph->p_memsz
+	//   - 从'binary+ph->p_offset'开始的ph->p_filesz的内容
+	// 	  要被加载到ph->p_va中。剩余的部分要置0。即>p_filesz且<=p_memsz的部分
+	// 	 - 使用之前lab中的函数来 分配和映射 物理页。
+	// 
+	// 	 - 所有页的保护位现在 都应 设为 对用户 可读/可写
+	// 	 - ELF的segment不一定是对齐到page size的
+	//	但你可以 假设2个segment不会 访问到相同的virtual page
+	// 	 
+	// 	 - 使用region_alloc函数
+	// 
+	// 	 - 如果你可以把数据 直接 移动到 ELF文件定义的 虚拟地址上的话，
+	// 	加载 segment会 变得十分简单。
 	//  So which page directory should be in force during
 	//  this function?
 	//
-	//  You must also do something with the program's entry point,
-	//  to make sure that the environment starts executing there.
-	//  What?  (See env_run() and env_pop_tf() below.)
+	//   - 对于程序的入口，你也需要做一些事情 来保证 程序确实从那个地方开始执行的。
+	//  	What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
+ 	struct Elf* header = (struct Elf*)binary;
+    
+    if(header->e_magic != ELF_MAGIC) { // 检查ELF文件的标记位
+        panic("load_icode failed: The binary we load is not elf.\n");
+    }
+
+    if(header->e_entry == 0){
+        panic("load_icode failed: The elf file can't be excuterd.\n");
+    }
+
+    e->env_tf.tf_eip = header->e_entry;
+
+    lcr3(PADDR(e->env_pgdir));   //?????
+
+    struct Proghdr *ph, *eph;
+    ph = (struct Proghdr* )((uint8_t *)header + header->e_phoff);
+    eph = ph + header->e_phnum;
+    for(; ph < eph; ph++) {
+        if(ph->p_type == ELF_PROG_LOAD) {
+            if(ph->p_memsz - ph->p_filesz < 0) {
+                panic("load icode failed : p_memsz < p_filesz.\n");
+            }
+
+            region_alloc(e, (void *)ph->p_va, ph->p_memsz);
+            memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+            memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
+        }
+    }
 
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
