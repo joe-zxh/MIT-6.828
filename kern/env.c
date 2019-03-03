@@ -379,17 +379,25 @@ load_icode(struct Env *e, uint8_t *binary)
 	region_alloc(e,(void *)(USTACKTOP-PGSIZE), PGSIZE);
 }
 
-//
-// Allocates a new env with env_alloc, loads the named elf
-// binary into it with load_icode, and sets its env_type.
-// This function is ONLY called during kernel initialization,
-// before running the first user-mode environment.
-// The new env's parent ID is set to 0.
-//
+// 
+// 通过env_alloc来分配一个新的env
+// 通过load_icode来加载elf二进制文件，并设置env_type
+// 
+// 这个函数只能在 内核初始化时调用(即在 第一个用户进程运行之前调用)
+// 新的env的parent ID设为0
+// 
 void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+	struct Env *e;
+    int rc;
+    if((rc = env_alloc(&e, 0)) != 0) {
+        panic("env_create failed: env_alloc failed.\n");
+    }
+
+    load_icode(e, binary);
+    e->env_type = type;
 }
 
 //
@@ -479,15 +487,28 @@ env_pop_tf(struct Trapframe *tf)
 	panic("iret failed");  /* mostly to placate the compiler */
 }
 
-//
-// Context switch from curenv to env e.
-// Note: if this is the first call to env_run, curenv is NULL.
-//
-// This function does not return.
-//
+// 
+// 上下文 从curenv 切换到e
+// 注意：如果是第一次运行env_run，那么curenv是NULL
+// 
+// 这个方程没有返回值
+// 
 void
 env_run(struct Env *e)
 {
+	// Step 1: 如果这是一个上下文的切换：
+	// 		1. 设置当前正在运行(ENV_RUNNING)的进程的状态为ENV_RUNNABLE
+	// 		2. 设置curenv为新的环境
+	// 
+	// 
+	// 
+	// 
+	// 
+	// 
+	// 
+
+
+
 	// Step 1: If this is a context switch (a new environment is running):
 	//	   1. Set the current environment (if any) back to
 	//	      ENV_RUNNABLE if it is ENV_RUNNING (think about
