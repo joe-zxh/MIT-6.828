@@ -105,20 +105,27 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	return 0;
 }
 
-// Mark all environments in 'envs' as free, set their env_ids to 0,
-// and insert them into the env_free_list.
-// Make sure the environments are in the free list in the same order
-// they are in the envs array (i.e., so that the first call to
-// env_alloc() returns envs[0]).
+// 
+// 所有在envs里的元素都设置为free, 把它们的env_ids设为0
+// 并把它们插入到env_free的链表中。
+// 确保env_free中的顺序 和 数组的顺序是一样的：
+// 即需要 从后面开始，使用头插法
 //
 void
 env_init(void)
 {
 	// Set up envs array
-	// LAB 3: Your code here.
-
-	// Per-CPU part of the initialization
-	env_init_percpu();
+    // LAB 3: Your code here.
+    int i;
+    env_free_list = NULL;
+    for(i=NENV-1; i>=0; i--){
+        envs[i].env_id = 0;
+        envs[i].env_status = ENV_FREE;
+        envs[i].env_link = env_free_list;
+        env_free_list = &envs[i];
+    }
+    // Per-CPU part of the initialization
+    env_init_percpu();
 }
 
 // Load GDT and segment descriptors.
@@ -142,59 +149,68 @@ env_init_percpu(void)
 	lldt(0);
 }
 
-//
-// Initialize the kernel virtual memory layout for environment e.
-// Allocate a page directory, set e->env_pgdir accordingly,
-// and initialize the kernel portion of the new environment's address space.
-// Do NOT (yet) map anything into the user portion
-// of the environment's virtual address space.
-//
-// Returns 0 on success, < 0 on error.  Errors include:
-//	-E_NO_MEM if page directory or table could not be allocated.
-//
+// 
+// 给环境e(实际上就是进程)初始化 内核虚拟地址
+// 分配页目录项e->env_pgdir
+// 初始化e的内核部分的地址空间
+// 用户部分的地址空间 不需要进行任何操作
+// 
+// 如果成功，返回0；如果出错，返回<0。错误包括：
+// 		-如果页目录(页) 或者 页表(页) 不能 被分配，那么返回 E_NO_MEM
+// 
 static int
 env_setup_vm(struct Env *e)
 {
 	int i;
 	struct PageInfo *p = NULL;
 
-	// Allocate a page for the page directory
+	// 分配一个物理页，作为 页目录 的物理页
 	if (!(p = page_alloc(ALLOC_ZERO)))
 		return -E_NO_MEM;
 
-	// Now, set e->env_pgdir and initialize the page directory.
+	// 现在，设置e->env_pgdir并初始化页目录
+	// 
+	// 提示：
+	//     - 对于每个envs来说，除了UVPT地方的内容，UTOP上面的虚拟地址空间都是一样的
+	// 		通过inc/memlayout.h来查看虚拟地址空间的 权限 和 布局
+	// 		可以使用kern_pgdir作为一个模板
+	//     - 在UTOP之下的VA都是空的
+	//     - 后面不再需要显式地调用page_alloc了
+	//     - 注意：通常来说，高于UTOP的虚拟地址对应的物理页的pp_ref 是不需要维护的。
+	// 		但是 在UVPT的env_pgdir是一个例外：你需要对env_pgdir的pp_ref进行自增
+	//		(我估计是为了以后多线程?)
+	// 	   - kern/pmap.h里面的函数 很有用。
 	//
-	// Hint:
-	//    - The VA space of all envs is identical above UTOP
-	//	(except at UVPT, which we've set below).
-	//	See inc/memlayout.h for permissions and layout.
-	//	Can you use kern_pgdir as a template?  Hint: Yes.
-	//	(Make sure you got the permissions right in Lab 2.)
-	//    - The initial VA below UTOP is empty.
-	//    - You do not need to make any more calls to page_alloc.
-	//    - Note: In general, pp_ref is not maintained for
-	//	physical pages mapped only above UTOP, but env_pgdir
-	//	is an exception -- you need to increment env_pgdir's
-	//	pp_ref for env_free to work correctly.
-	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
+	e->env_pgdir = (pde_t *)page2kva(p);
+    p->pp_ref++;
 
-	// UVPT maps the env's own page table read-only.
-	// Permissions: kernel R, user R
+    // 低于UTOP的页目录的内容设为空
+    for(i = 0; i < PDX(UTOP); i++) {
+        e->env_pgdir[i] = 0;        
+    }
+
+    // 高于UTOP的页目录的内容 通过kern_pgdir来设置
+    for(i = PDX(UTOP); i < NPDENTRIES; i++) {
+        e->env_pgdir[i] = kern_pgdir[i];
+    }
+
+	// UVPT处对应的是env自己的 页目录页，它是只读的
+	// 权限：内核读/用户读
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
 
 	return 0;
 }
 
-//
-// Allocates and initializes a new environment.
-// On success, the new environment is stored in *newenv_store.
-//
-// Returns 0 on success, < 0 on failure.  Errors include:
-//	-E_NO_FREE_ENV if all NENV environments are allocated
-//	-E_NO_MEM on memory exhaustion
-//
+// 
+// 分配和初始化一个environment
+// 如果成功，那么新的环境存在*newenv_store中
+// 
+// 如果成功，返回0；如果失败，返回<0。错误包括：
+// 		- E_NO_FREE_ENV: 所有NENV个环境都已经分配满了
+// 		- E_NO_MEM: 物理内存已经用完
+// 
 int
 env_alloc(struct Env **newenv_store, envid_t parent_id)
 {
