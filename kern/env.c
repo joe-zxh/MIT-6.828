@@ -482,7 +482,7 @@ env_pop_tf(struct Trapframe *tf)
 		"\tpopl %%es\n"
 		"\tpopl %%ds\n"
 		"\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
-		"\tiret\n"
+		"\tiret\n" //iret是 中断返回指令
 		: : "g" (tf) : "memory");
 	panic("iret failed");  /* mostly to placate the compiler */
 }
