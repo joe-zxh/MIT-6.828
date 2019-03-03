@@ -10,6 +10,8 @@
 #include <kern/syscall.h>
 
 static struct Taskstate ts;
+// 在跳转到中断处理程序执行之前
+// 把 处理器的状态 保存到ts中，处理完中断后，再恢复
 
 /* For debugging, so print_trapframe can distinguish between printing
  * a saved trapframe and printing the current trapframe and print some
@@ -87,7 +89,7 @@ trap_init(void)
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, t_divide, 0);
 	SETGATE(idt[T_DEBUG], 0, GD_KT, t_debug, 0);
 	SETGATE(idt[T_NMI], 0, GD_KT, t_nmi, 0);
-	SETGATE(idt[T_BRKPT], 0, GD_KT, t_brkpt, 3);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, t_brkpt, 3); //断点
 	SETGATE(idt[T_OFLOW], 0, GD_KT, t_oflow, 0);
 	SETGATE(idt[T_BOUND], 0, GD_KT, t_bound, 0);
 	SETGATE(idt[T_ILLOP], 0, GD_KT, t_illop, 0);
@@ -103,6 +105,7 @@ trap_init(void)
 	SETGATE(idt[T_MCHK], 0, GD_KT, t_mchk, 0);
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, t_simderr, 0);
 	SETGATE(idt[T_SYSCALL], 0, GD_KT, t_syscall, 3);
+	//系统调用是允许用户模式下调用的
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -114,7 +117,7 @@ trap_init_percpu(void)
 {
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
-	ts.ts_esp0 = KSTACKTOP;
+	ts.ts_esp0 = KSTACKTOP; // 初始化ts.ts_esp0的值而已
 	ts.ts_ss0 = GD_KD;
 	ts.ts_iomb = sizeof(struct Taskstate);
 

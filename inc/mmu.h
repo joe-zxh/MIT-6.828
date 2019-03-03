@@ -285,15 +285,11 @@ struct Gatedesc {
 //	  the privilege level required for software to invoke
 //	  this interrupt/trap gate explicitly using an int instruction.
 
-
 // 设置一个正常的 中断/陷入(异常) 的入口描述符
 // - istrap参数: 1表示异常(exception)的入口, 0表示 中断的入口
-	// 请查阅i386在9.6.1.3章节的引用
-	// 
-	// 
-	// 
-	// 
-	// 
+	// 请查阅i386在9.6.1.3章节的引用: 
+	// 中断门 和 陷入门 的区别是 他们对IF(interrupt-enable flag)的效果不同。
+	// 中断会重置IF，最后再恢复。而 陷入不会改变IF
 // - sel: 中断/异常 处理函数的 代码段选择子
 // - off: 中断/异常 处理函数在 代码段中的 偏移
 // - dpl: Descriptor Priviledge Level: 段选择子的 权限
