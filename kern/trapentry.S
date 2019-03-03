@@ -72,13 +72,13 @@ TRAPHANDLER_NOEC(t_syscall, T_SYSCALL)
  * Lab 3: Your code here for _alltraps
  */
 _alltraps:
-	pushl %ds
+	pushl %ds /* 保存一下 ds和es */
 	pushl %es
 	pushal 
 
 	movl $GD_KD, %eax
-	movw %ax, %ds
-	movw %ax, %es
+	movw %ax, %ds /* kernel的data segment*/
+	movw %ax, %es /* extra segment */
 
 	push %esp
 	call trap	

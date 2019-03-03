@@ -284,6 +284,20 @@ struct Gatedesc {
 // - dpl: Descriptor Privilege Level -
 //	  the privilege level required for software to invoke
 //	  this interrupt/trap gate explicitly using an int instruction.
+
+
+// 设置一个正常的 中断/陷入(异常) 的入口描述符
+// - istrap参数: 1表示异常(exception)的入口, 0表示 中断的入口
+	// 请查阅i386在9.6.1.3章节的引用
+	// 
+	// 
+	// 
+	// 
+	// 
+// - sel: 中断/异常 处理函数的 代码段选择子
+// - off: 中断/异常 处理函数在 代码段中的 偏移
+// - dpl: Descriptor Priviledge Level: 段选择子的 权限
+// 
 #define SETGATE(gate, istrap, sel, off, dpl)			\
 {								\
 	(gate).gd_off_15_0 = (uint32_t) (off) & 0xffff;		\
