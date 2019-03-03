@@ -45,6 +45,7 @@
 
 struct PushRegs {
 	/* registers as pushed by pusha */
+	/* 汇编指令pusha会把 寄存器按照以下顺序 push到栈中 */
 	uint32_t reg_edi;
 	uint32_t reg_esi;
 	uint32_t reg_ebp;

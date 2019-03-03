@@ -131,17 +131,18 @@ void
 env_init_percpu(void)
 {
 	lgdt(&gdt_pd);
-	// The kernel never uses GS or FS, so we leave those set to
-	// the user data segment.
-	asm volatile("movw %%ax,%%gs" : : "a" (GD_UD|3));
+	// 因为kernel从来不会使用 寄存器GS和FS
+	// 所以我们把 user data segment存到 GS和FS中
+	asm volatile("movw %%ax,%%gs" : : "a" (GD_UD|3)); //"a"表示 把(GD_UD|3)放入eax。
 	asm volatile("movw %%ax,%%fs" : : "a" (GD_UD|3));
 	// The kernel does use ES, DS, and SS.  We'll change between
 	// the kernel and user data segments as needed.
-	asm volatile("movw %%ax,%%es" : : "a" (GD_KD));
+	asm volatile("movw %%ax,%%es" : : "a" (GD_KD)); //在es，ds，ss中 记录kernel data segment
 	asm volatile("movw %%ax,%%ds" : : "a" (GD_KD));
 	asm volatile("movw %%ax,%%ss" : : "a" (GD_KD));
+
 	// Load the kernel text segment into CS.
-	asm volatile("ljmp %0,$1f\n 1:\n" : : "i" (GD_KT));
+	asm volatile("ljmp %0,$1f\n 1:\n" : : "i" (GD_KT)); // 相当于使用了新的全局描述符表，并且跳到下一行代码
 	// For good measure, clear the local descriptor table (LDT),
 	// since we don't use it.
 	lldt(0);
@@ -224,10 +225,13 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 		return r;
 
 	// Generate an env_id for this environment.
+	// generation 记录的是 第i代 使用这个e的 进程。
+	// 尽管我们只需要用最右边的10位作为index，但 generation 是从第13位 才开始计数
+	// 注意：最左那位是 符号位
 	generation = (e->env_id + (1 << ENVGENSHIFT)) & ~(NENV - 1);
 	if (generation <= 0)	// Don't create a negative env_id.
 		generation = 1 << ENVGENSHIFT;
-	e->env_id = generation | (e - envs);
+	e->env_id = generation | (e - envs); // | (e - envs)表示 后面10位 放的是 它在envs的index
 
 	// Set the basic status variables.
 	e->env_parent_id = parent_id;
@@ -235,29 +239,26 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	e->env_status = ENV_RUNNABLE;
 	e->env_runs = 0;
 
-	// Clear out all the saved register state,
-	// to prevent the register values
-	// of a prior environment inhabiting this Env structure
-	// from "leaking" into our new environment.
+	// 清空寄存器的值
 	memset(&e->env_tf, 0, sizeof(e->env_tf));
 
-	// Set up appropriate initial values for the segment registers.
-	// GD_UD is the user data segment selector in the GDT, and
-	// GD_UT is the user text segment selector (see inc/memlayout.h).
-	// The low 2 bits of each segment register contains the
-	// Requestor Privilege Level (RPL); 3 means user mode.  When
-	// we switch privilege levels, the hardware does various
-	// checks involving the RPL and the Descriptor Privilege Level
-	// (DPL) stored in the descriptors themselves.
+	// 给段寄存器设置合适的初始值
+	// GD_UD是GDT中的用户数据段选择子 user data segment selector
+	// GD_UT是GDT中的用户代码段选择子 user text segment selector
+	// 每个段寄存器的最低2位 记录了RPL的值(Requstor Privilege Level)
+	// 0表示kernel mode，3表示user mode
+	// 当我们切换上下文的时候，例如，从用户态切换成 内核态
+	// CPL(current privilege level)从3变为0，但RPL依旧为3
+	// 硬件通过RPL，而不是CPL来检查 是否有权限访问 对应的段(DPL: Descriptor Privilege Level) 
 	e->env_tf.tf_ds = GD_UD | 3;
 	e->env_tf.tf_es = GD_UD | 3;
 	e->env_tf.tf_ss = GD_UD | 3;
 	e->env_tf.tf_esp = USTACKTOP;
 	e->env_tf.tf_cs = GD_UT | 3;
-	// You will set e->env_tf.tf_eip later.
+	// e->env_tf.tf_eip 会在后面的load_icode函数中设置
 
-	// commit the allocation
-	env_free_list = e->env_link;
+	// 完成分配
+	env_free_list = e->env_link; //将这个e移出env_free_list
 	*newenv_store = e;
 
 	cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
