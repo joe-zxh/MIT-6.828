@@ -19,21 +19,19 @@ static struct Env *env_free_list;	// Free environment list
 
 #define ENVGENSHIFT	12		// >= LOGNENV
 
-// Global descriptor table.
 //
-// Set up global descriptor table (GDT) with separate segments for
-// kernel mode and user mode.  Segments serve many purposes on the x86.
-// We don't use any of their memory-mapping capabilities, but we need
-// them to switch privilege levels. 
-//
-// The kernel and user segments are identical except for the DPL.
-// To load the SS register, the CPL must equal the DPL.  Thus,
-// we must duplicate the segments for the user and the kernel.
-//
-// In particular, the last argument to the SEG macro used in the
-// definition of gdt specifies the Descriptor Privilege Level (DPL)
-// of that descriptor: 0 for kernel and 3 for user.
-//
+// 全局描述符表
+// 
+// 为内核模式 和 用户模式 设置不同的全局描述符表。
+// 段机制 在x86上 有很多目的。
+// 我们不是用他们的 内存映射的 特点，但我们需要 用它来进行 特权级别的 转换
+// 
+// 除了DPL，kernel 和 user的段 是相同的。
+// 要加载 对应的 SS 寄存器，CPL(current privilege level)要等于DPL才行
+// 
+// 最后的那个参数 指定了 全局描述符 权限等级 DPL(Descriptor privilege Level)
+// 0表示kernel级别的，3表示user级别的
+// 
 struct Segdesc gdt[] =
 {
 	// 0x0 - unused (always faults -- for trapping NULL far pointers)

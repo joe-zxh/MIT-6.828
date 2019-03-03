@@ -329,7 +329,7 @@ struct Gatedesc {
 struct Pseudodesc {
 	uint16_t pd_lim;		// Limit
 	uint32_t pd_base;		// Base address
-} __attribute__ ((packed));
+} __attribute__ ((packed)); // 告诉编译器取消在编译过程中的优化对齐,按照实际占用字节数进行对齐
 
 #endif /* !__ASSEMBLER__ */
 

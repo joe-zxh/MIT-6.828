@@ -95,7 +95,7 @@ gdt:
 # SEG(type, base, lim)
 # type表示访问权限。代码段是 可执行(STA_X) 和 可读的(STA_R)    数据段是可写的(STA_W)
 # base表示起始地址
-# limit表示段的大小接线。
+# limit表示段的大小界限。
 # 因为xv6里面没有分段机制，数据 和 代码都写在一起的
 # 所以 数据段和代码段的起始地址都是0x0，大小都是0xffffffff=4GB。
 
