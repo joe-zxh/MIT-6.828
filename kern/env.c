@@ -353,13 +353,13 @@ load_icode(struct Env *e, uint8_t *binary)
         panic("load_icode failed: The elf file can't be excuterd.\n");
     }
 
-    e->env_tf.tf_eip = header->e_entry;
+    e->env_tf.tf_eip = header->e_entry; //eip设为 elf的入口entry
 
-    lcr3(PADDR(e->env_pgdir));   //?????
+    lcr3(PADDR(e->env_pgdir)); //应该是在硬件上设置 开启分页，且 页目录为e->env_pgdir
 
     struct Proghdr *ph, *eph;
-    ph = (struct Proghdr* )((uint8_t *)header + header->e_phoff);
-    eph = ph + header->e_phnum;
+    ph = (struct Proghdr* )((uint8_t *)header + header->e_phoff); // program header开始的位置
+    eph = ph + header->e_phnum; //end of program header
     for(; ph < eph; ph++) {
         if(ph->p_type == ELF_PROG_LOAD) {
             if(ph->p_memsz - ph->p_filesz < 0) {
@@ -368,14 +368,15 @@ load_icode(struct Env *e, uint8_t *binary)
 
             region_alloc(e, (void *)ph->p_va, ph->p_memsz);
             memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+			//从'binary+ph->p_offset'开始的ph->p_filesz的内容，复制到ph->p_va中
             memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
+			//剩余的部分要置0。即>p_filesz且<=p_memsz的部分需要置0
         }
     }
 
-	// Now map one page for the program's initial stack
-	// at virtual address USTACKTOP - PGSIZE.
-
+	// 现在 在USTACKTOP-PGSIZE的位置上，为用户进程的 栈分配一个PGSIZE大小的栈
 	// LAB 3: Your code here.
+	region_alloc(e,(void *)(USTACKTOP-PGSIZE), PGSIZE);
 }
 
 //

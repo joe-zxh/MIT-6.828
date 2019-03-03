@@ -53,7 +53,7 @@ bootmain(void)
 	// 实际上就是相当于 把整个程序给加载到内存中(因为 整个内核应该会超过4MB，而 它的ELF头部应该不会超过4MB， 所以可以先加载第一页，再通过program header table把剩余的segment全部加载进来)
 	// 关于EFL的文件格式，以及 ELF的数据结构，可以参考：https://jzhihui.iteye.com/blog/1447570
 	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
-	eph = ph + ELFHDR->e_phnum;
+	eph = ph + ELFHDR->e_phnum; //end of program header
 	for (; ph < eph; ph++)
 		// p_pa is the load address of this segment (as well
 		// as the physical address)
