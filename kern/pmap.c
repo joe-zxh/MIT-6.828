@@ -321,9 +321,14 @@ page_init(void)
 	//num_iohole：在io hole区域占用的页数
 	int num_iohole = 96;
 
+	size_t mp_page = PGNUM(MPENTRY_PADDR);
 	for(i=0; i<npages; i++)
 	{
-		if(i==0) //第一个物理页是已使用的
+		if(i==mp_page){ //lab4 exercise2: 物理页0x7000的位置 是用来加载多处理器启动代码的
+			pages[i].pp_ref = 1;
+        	continue;
+		}
+		else if(i==0) //第一个物理页是已使用的
 		{
 			pages[i].pp_ref = 1;
 		}    
@@ -580,39 +585,43 @@ tlb_invalidate(pde_t *pgdir, void *va)
 		invlpg(va);
 }
 
-//
-// Reserve size bytes in the MMIO region and map [pa,pa+size) at this
-// location.  Return the base of the reserved region.  size does *not*
-// have to be multiple of PGSIZE.
-//
+// 
+// 在MMIO中获取size字节的空间，并 把物理内存的[pa, pa+size)的内容映射到这里
+// 返回 该区域的base(虚拟地址).
+// 传递的参数size 不一定是PGSIZE的整数倍
+// 
 void *
 mmio_map_region(physaddr_t pa, size_t size)
 {
-	// Where to start the next region.  Initially, this is the
-	// beginning of the MMIO region.  Because this is static, its
-	// value will be preserved between calls to mmio_map_region
-	// (just like nextfree in boot_alloc).
+	// 
+	// base是调用mmio_map_region前，MMIO开始分配的地方。
+	// 初始或为MMIOBASE。
+	// 
 	static uintptr_t base = MMIOBASE;
 
-	// Reserve size bytes of virtual memory starting at base and
-	// map physical pages [pa,pa+size) to virtual addresses
-	// [base,base+size).  Since this is device memory and not
-	// regular DRAM, you'll have to tell the CPU that it isn't
-	// safe to cache access to this memory.  Luckily, the page
-	// tables provide bits for this purpose; simply create the
-	// mapping with PTE_PCD|PTE_PWT (cache-disable and
-	// write-through) in addition to PTE_W.  (If you're interested
-	// in more details on this, see section 10.5 of IA32 volume
-	// 3A.)
-	//
-	// Be sure to round size up to a multiple of PGSIZE and to
-	// handle if this reservation would overflow MMIOLIM (it's
-	// okay to simply panic if this happens).
-	//
-	// Hint: The staff solution uses boot_map_region.
-	//
+	// 把物理地址[pa, pa+size)映射到 虚拟地址[base, base+size)
+	// 因为这部分内存是用于外部设备的内存(例如VGA显示)
+	// 而不是常规的DRAM，所以需要告诉CPU，对这部分内存进行缓存是不安全的
+	// 幸运地，页表项 为这个目的提供了 一些位：只需要 在PTE_W权限的基础上 加入
+	// PTE_PCD|PTE_PWT (cache-disable和write through)就可以了。
+	// IA32 3A版本的 10.5章节 可以获得更多的详细信息。
+	// 
+	// 需要 把size变为PGSIZE的整数倍
+	// 需要 检查这次预留操作 会不会 超出MMIOLIM的范围
+	// (如果超出，发出panic即可)
+	// 
+	// 提示：TA的解法中 使用了 boot_map_region
+	// 
 	// Your code here:
-	panic("mmio_map_region not implemented");
+    size_t rounded_size = ROUNDUP(size, PGSIZE);
+
+    if (base + rounded_size > MMIOLIM){
+		panic("overflow MMIOLIM");
+	}
+    boot_map_region(kern_pgdir, base, rounded_size, pa, PTE_W|PTE_PCD|PTE_PWT);
+    uintptr_t res_region_base = base;   
+    base += rounded_size;       
+    return (void *)res_region_base;
 }
 
 static uintptr_t user_mem_check_addr;
