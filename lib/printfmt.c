@@ -39,7 +39,7 @@ printnum(void (*putch)(int, void*), void *putdat,
 	 unsigned long long num, unsigned base, int width, int padc)
 {
 	// first recursively print all preceding (more significant) digits
-	if (num >= base) {
+	if (num >= base) { //递归调用来打印数字
 		printnum(putch, putdat, num / base, base, width - 1, padc);
 	} else {
 		// print any needed pad characters before first digit
@@ -93,10 +93,10 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 	while (1) {
 		while ((ch = *(unsigned char *) fmt++) != '%') {
 			if (ch == '\0')
-				return;
-			putch(ch, putdat);
+				return; //读到format的结尾，整个函数返回的位置
+			putch(ch, putdat);//不是格式符，那么直接输出
 		}
-
+		// 现在ch=‘%’,fmt的下一个字符才是 具体格式
 		// Process a %-escape sequence
 		padc = ' ';
 		width = -1;
@@ -206,12 +206,10 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 			goto number;
 
 		// (unsigned) octal
-		case 'o':
-			// Replace this with your code.
-			putch('X', putdat);
-			putch('X', putdat);
-			putch('X', putdat);
-			break;
+		case 'o': //参考上面 case 'u'的写法即可
+    		num = getuint(&ap, lflag);
+    		base = 8;
+    		goto number;
 
 		// pointer
 		case 'p':
@@ -226,7 +224,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		case 'x':
 			num = getuint(&ap, lflag);
 			base = 16;
-		number:
+		number: //如果是数字格式，那么需要调用printnum。需要把基 以及 各种格式传递进去
 			printnum(putch, putdat, num, base, width, padc);
 			break;
 
@@ -247,7 +245,8 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 
 void
 printfmt(void (*putch)(int, void*), void *putdat, const char *fmt, ...)
-{
+{ // 这个是比较靠近高级的接口。和/kern/printf.c里面的cprintf类似
+//获取到参数列表ap之后，再调用稍底层的vprintfmt
 	va_list ap;
 
 	va_start(ap, fmt);

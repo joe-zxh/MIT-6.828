@@ -1,3 +1,4 @@
+// 详细内容可以参考：https://jzhihui.iteye.com/blog/1447570
 #ifndef JOS_INC_ELF_H
 #define JOS_INC_ELF_H
 
@@ -6,19 +7,20 @@
 struct Elf {
 	uint32_t e_magic;	// must equal ELF_MAGIC
 	uint8_t e_elf[12];
-	uint16_t e_type;
-	uint16_t e_machine;
+	// 应该是为了和elf32_hdr对齐的，elf32_hdr里面有16个字节，而这里只用了前面4个字节(e_magic)作为MAGIC
+	uint16_t e_type; //文件类型，2表示 可执行文件
+	uint16_t e_machine; // e_machine表示机器类别，3表示386机器
 	uint32_t e_version;
-	uint32_t e_entry;
-	uint32_t e_phoff;
-	uint32_t e_shoff;
-	uint32_t e_flags;
-	uint16_t e_ehsize;
-	uint16_t e_phentsize;
-	uint16_t e_phnum;
-	uint16_t e_shentsize;
-	uint16_t e_shnum;
-	uint16_t e_shstrndx;
+	uint32_t e_entry; //进程开始的虚地址，即系统将控制转移的位置
+	uint32_t e_phoff; //program header table的偏移(offset)
+	uint32_t e_shoff; //section header table的偏移(offset)
+	uint32_t e_flags; //处理器相关的标志
+	uint16_t e_ehsize;//ELF文件头的大小
+	uint16_t e_phentsize; //program header entry size: PH表中的entry的大小
+	uint16_t e_phnum; //PH表中的entry的数量
+	uint16_t e_shentsize; //section header entry size
+	uint16_t e_shnum; //SH表中的entry的数量
+	uint16_t e_shstrndx; //Section header name string table index
 };
 
 struct Proghdr {
@@ -27,7 +29,7 @@ struct Proghdr {
 	uint32_t p_va;
 	uint32_t p_pa;
 	uint32_t p_filesz;
-	uint32_t p_memsz;
+	uint32_t p_memsz; /* size in memory */
 	uint32_t p_flags;
 	uint32_t p_align;
 };

@@ -11,6 +11,8 @@
 ###################################################################
 # The kernel (this code) is linked at address ~(KERNBASE + 1 Meg), 
 # but the bootloader loads it at address ~1 Meg.
+# KERNBASE是0xF0000000, kernel的链接地址的开始位置为：0xF0100000
+# 但实际的物理地址的开始位置为：0x00100000(1M的地方)
 #	
 # RELOC(x) maps a symbol x from its link address to its actual
 # location in physical memory (its load address).	 
@@ -38,7 +40,7 @@
 # virtual memory when the bootloader enters this code, we need the
 # bootloader to jump to the *physical* address of the entry point.
 .globl		_start
-_start = RELOC(entry)
+_start = RELOC(entry) # RELOC把 链接地址 转换为 实际的物理地址了
 
 .globl entry
 entry:
@@ -57,13 +59,19 @@ entry:
 	# is defined in entrypgdir.c.
 	movl	$(RELOC(entry_pgdir)), %eax
 	movl	%eax, %cr3
-	# Turn on paging.
+	# Turn on paging. 开启分页
 	movl	%cr0, %eax
 	orl	$(CR0_PE|CR0_PG|CR0_WP), %eax
 	movl	%eax, %cr0
+	# 之后 相当于 高的虚拟地址 实际访问的都是低的 物理地址的内容。
+	# 需要访问 标号的地址的时候，不再需要通过 RELOC(标号) 来获取物理地址了。
+	# 相对应的 高的物理地址 实际是没有内容的，返回值的 时候是返回 低的物理地址的内容。
+	# 可以通过 另外的程序 来查看相应 的高的物理地址的内容。
 
 	# Now paging is enabled, but we're still running at a low EIP
-	# (why is this okay?).  Jump up above KERNBASE before entering
+	# (why is this okay?).
+	# 它说的low EIP，应该指的是EIP(32位)的低16位。这是因为现在需要用到的地址只有0~4MB(2^16)
+	# Jump up above KERNBASE before entering
 	# C code.
 	mov	$relocated, %eax
 	jmp	*%eax
@@ -76,6 +84,8 @@ relocated:
 
 	# Set the stack pointer
 	movl	$(bootstacktop),%esp
+	# 通过gdb，查看到bootstacktop=0xf0110000
+	# 又因为KSTKSIZE=32KB，所以栈的位置是：0xf0108000-0xf0110000
 
 	# now to C code
 	call	i386_init
@@ -91,7 +101,7 @@ spin:	jmp	spin
 	.p2align	PGSHIFT		# force page alignment
 	.globl		bootstack
 bootstack:
-	.space		KSTKSIZE
+	.space		KSTKSIZE # kernel stack size 内核栈的大小：32KB
 	.globl		bootstacktop   
 bootstacktop:
 
