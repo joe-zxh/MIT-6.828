@@ -548,39 +548,51 @@ tlb_invalidate(pde_t *pgdir, void *va)
 
 static uintptr_t user_mem_check_addr;
 
-//
-// Check that an environment is allowed to access the range of memory
-// [va, va+len) with permissions 'perm | PTE_P'.
-// Normally 'perm' will contain PTE_U at least, but this is not required.
-// 'va' and 'len' need not be page-aligned; you must test every page that
-// contains any of that range.  You will test either 'len/PGSIZE',
-// 'len/PGSIZE + 1', or 'len/PGSIZE + 2' pages.
-//
-// A user program can access a virtual address if (1) the address is below
-// ULIM, and (2) the page table gives it permission.  These are exactly
-// the tests you should implement here.
-//
-// If there is an error, set the 'user_mem_check_addr' variable to the first
-// erroneous virtual address.
-//
-// Returns 0 if the user program can access this range of addresses,
-// and -E_FAULT otherwise.
-//
+// 
+// 检查一个进程 是否有对虚拟 地址[va, va+len)的访问权限 'perm | PTE_P'
+// 通常perm里面 会至少包括PTE_U，但这不是必须的
+// va和len不一定是 对齐到page的；你必须检查 那个范围中的所有page。
+// 你可能需要检查的页的个数为：'len/PGSIZE'，'len/PGSIZE+1', 'len/PGSIZE+2'
+// 
+// 一个用户进程能访问某个虚拟地址的条件：
+// 1. 这个地址 在ULIM之下
+// 2. 符合 页表 中 给出的访问权限
+// 
+// 如果出错，那么设置 变量user_mem_check_addr为 第一个出错的 虚拟地址。
+// 
+// 如果用户程序 可以访问这个范围的地址，那么返回0；否则 返回 -E_FAULT
+// 
 int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
+	char * end = NULL;
+    char * start = NULL;
+    start = ROUNDDOWN((char *)va, PGSIZE); 
+    end = ROUNDUP((char *)(va + len), PGSIZE);//对齐一下
+    pte_t *cur = NULL;
+
+    for(; start < end; start += PGSIZE) {
+        cur = pgdir_walk(env->env_pgdir, (void *)start, 0);
+        if((int)start > ULIM || cur == NULL || ((uint32_t)(*cur) & perm) != perm) {
+              if(start == ROUNDDOWN((char *)va, PGSIZE)) {
+                    user_mem_check_addr = (uintptr_t)va;
+              }
+              else {
+                      user_mem_check_addr = (uintptr_t)start;
+              }
+              return -E_FAULT;
+        }
+    }
 
 	return 0;
 }
 
-//
-// Checks that environment 'env' is allowed to access the range
-// of memory [va, va+len) with permissions 'perm | PTE_U | PTE_P'.
-// If it can, then the function simply returns.
-// If it cannot, 'env' is destroyed and, if env is the current
-// environment, this function will not return.
-//
+// 
+// 检查env是否 有对虚拟内存 [va, va+len)的访问权限 'perm | PTE_U | PTE_P'
+// 如果有，那么 函数直接返回
+// 如果没有，那么销毁env；如果 env是当前的进程，那么函数不会返回
+// 
 void
 user_mem_assert(struct Env *env, const void *va, size_t len, int perm)
 {

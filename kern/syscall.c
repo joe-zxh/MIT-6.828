@@ -22,6 +22,7 @@ sys_cputs(const char *s, size_t len)
 
 	// LAB 3: Your code here.
 	user_mem_assert(curenv, s, len, 0);
+	//检查用户程序 是否有 对虚拟地址空间[s, s+len]的访问权限
 
 	// Print the string supplied by the user. ???这个难道不是/kern/cprintf???
 	cprintf("%.*s", len, s);
