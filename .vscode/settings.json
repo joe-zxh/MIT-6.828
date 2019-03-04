@@ -3,6 +3,7 @@
         "kclock.h": "c",
         "pmap.h": "c",
         "memlayout.h": "c",
-        "mmu.h": "c"
+        "mmu.h": "c",
+        "syscall.h": "c"
     }
 }
