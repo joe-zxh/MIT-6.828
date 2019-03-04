@@ -55,7 +55,7 @@ bootmain(void)
 	// 关于EFL的文件格式，以及 ELF的数据结构，可以参考：https://jzhihui.iteye.com/blog/1447570
 	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
 	eph = ph + ELFHDR->e_phnum; //end of program header
-	for (; ph < eph; ph++)
+	for (; ph < eph; ph++) {
 		// p_pa is the load address of this segment (as well
 		// as the physical address)
 		readseg(ph->p_pa, ph->p_memsz, ph->p_offset);
