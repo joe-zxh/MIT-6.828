@@ -4,6 +4,10 @@
         "pmap.h": "c",
         "memlayout.h": "c",
         "mmu.h": "c",
-        "syscall.h": "c"
+        "syscall.h": "c",
+        "console.h": "c",
+        "types.h": "c",
+        "trap.h": "c",
+        "env.h": "c"
     }
 }

@@ -4,6 +4,7 @@
 .data
 // Define the global symbols 'envs', 'pages', 'uvpt', and 'uvpd'
 // so that they can be used in C as if they were ordinary global arrays.
+// 设置一些全局变量
 	.globl envs
 	.set envs, UENVS
 	.globl pages
@@ -16,6 +17,7 @@
 
 // Entrypoint - this is where the kernel (or our parent environment)
 // starts us running when we are initially loaded into a new environment.
+// 用户程序的入口
 .text
 .globl _start
 _start:
