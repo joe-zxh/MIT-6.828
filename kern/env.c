@@ -34,7 +34,8 @@ static struct Env *env_free_list;	// Free environment list
 // 最后的那个参数 指定了 全局描述符 权限等级 DPL(Descriptor privilege Level)
 // 0表示kernel级别的，3表示user级别的
 // 
-struct Segdesc gdt[NCPU + 5] =
+struct Segdesc gdt[NCPU + 5] = // 前面5个元素定义的 内核、用户的 数据段 和 代码段
+// 后面 的NCPU个元素，定义的是 每个CPU自己的 TSS段，先设置为SEG_NULL，后面会在trap_init_percpu()中定义
 {
 	// 0x0 - unused (always faults -- for trapping NULL far pointers)
 	SEG_NULL,
@@ -51,8 +52,8 @@ struct Segdesc gdt[NCPU + 5] =
 	// 0x20 - user data segment
 	[GD_UD >> 3] = SEG(STA_W, 0x0, 0xffffffff, 3),
 
-	// Per-CPU TSS descriptors (starting from GD_TSS0) are initialized
-	// in trap_init_percpu()
+	// 每个CPU自己的TSS段描述符，先设置为SEG_NULL，后面会在trap_init_percpu()中定义
+	// 一共有NCPU个
 	[GD_TSS0 >> 3] = SEG_NULL
 };
 

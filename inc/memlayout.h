@@ -11,7 +11,7 @@
  * which are relevant to both the kernel and user-mode software.
  */
 
-// Global descriptor numbers
+// Global descriptor numbers 最右边3为都是0，是保留位来的，暂时没用
 #define GD_KT     0x08     // kernel text 0000 1000
 #define GD_KD     0x10     // kernel data 0001 0000
 #define GD_UT     0x18     // user text   0001 1000
