@@ -545,6 +545,7 @@ env_run(struct Env *e)
     curenv->env_status = ENV_RUNNING;
     curenv->env_runs++;
     lcr3(PADDR(curenv->env_pgdir));
+	unlock_kernel();//释放锁
 
     env_pop_tf(&curenv->env_tf);
 	// 通过e->env_tf的内容 来恢复寄存器，实现切换进程的上下文。
