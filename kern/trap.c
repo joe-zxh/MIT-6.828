@@ -264,7 +264,7 @@ trap(struct Trapframe *tf)
 {
 	// The environment may have set DF and some versions
 	// of GCC rely on DF being clear
-	asm volatile("cld" ::: "cc");
+	asm volatile("cld" ::: "cc");//cld表示 清除方向标志
 
 	// Halt the CPU if some other CPU has called panic()
 	extern char *panicstr;
@@ -280,7 +280,7 @@ trap(struct Trapframe *tf)
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
 
-	if ((tf->tf_cs & 3) == 3) {
+	if ((tf->tf_cs & 3) == 3) { // cs的最后3位
 		// Trapped from user mode.
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
