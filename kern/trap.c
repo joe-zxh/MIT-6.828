@@ -215,36 +215,26 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	if (tf->tf_trapno == T_PGFLT) {
+		return page_fault_handler(tf);
+	}
 
-	int32_t ret_code;
-	 switch(tf->tf_trapno) {
-        case (T_PGFLT):
-            page_fault_handler(tf);
-            break;
-		case (T_BRKPT):
-            monitor(tf);
-			break; 
-		case (T_SYSCALL):
-			ret_code = syscall(
-					tf->tf_regs.reg_eax,
-					tf->tf_regs.reg_edx,
-					tf->tf_regs.reg_ecx,
-					tf->tf_regs.reg_ebx,
-					tf->tf_regs.reg_edi,
-					tf->tf_regs.reg_esi);
-			tf->tf_regs.reg_eax = ret_code;
-			break;
+	if (tf->tf_trapno == T_BRKPT) {
+		return monitor(tf);
+	}
 
-        default:
-            // Unexpected trap: The user process or the kernel has a bug.
-            print_trapframe(tf);
-            if (tf->tf_cs == GD_KT)
-                panic("unhandled trap in kernel");
-            else {
-                env_destroy(curenv);
-                return;
-            }
-    }
+	if (tf->tf_trapno == T_SYSCALL) {
+		tf->tf_regs.reg_eax = syscall(
+			tf->tf_regs.reg_eax,
+			tf->tf_regs.reg_edx,
+			tf->tf_regs.reg_ecx,
+			tf->tf_regs.reg_ebx,
+			tf->tf_regs.reg_edi,
+			tf->tf_regs.reg_esi
+		);
+		return;
+	}
+
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
 	// IRQ line or other reasons. We don't care.
@@ -258,9 +248,8 @@ trap_dispatch(struct Trapframe *tf)
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
 
-	// Unexpected trap: The user process or the kernel has a bug.
 
-	cprintf("Debug\n");
+	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
 		panic("unhandled trap in kernel");
