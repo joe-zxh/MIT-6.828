@@ -214,7 +214,9 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here: //lab2:
-	boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
+	// boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
+	// mem_init_mp()中将会 把 BSP的 stack也一起 初始化，所以 不需要 重复操作了。
+	// 注意：bootstack和percpu_kstacks[0]是不一样的
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -256,29 +258,29 @@ mem_init(void)
 	check_page_installed_pgdir();
 }
 
-// Modify mappings in kern_pgdir to support SMP
-//   - Map the per-CPU stacks in the region [KSTACKTOP-PTSIZE, KSTACKTOP)
-//
+// 修改kern_pgdir中的映射 来支持SMP
+// 	 - 把 不同CPU的栈 映射到 它所对应的位置 [KSTACKTOP-PTSIZE, KSTACKTOP]
+// 
 static void
 mem_init_mp(void)
 {
-	// Map per-CPU stacks starting at KSTACKTOP, for up to 'NCPU' CPUs.
-	//
-	// For CPU i, use the physical memory that 'percpu_kstacks[i]' refers
-	// to as its kernel stack. CPU i's kernel stack grows down from virtual
-	// address kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP), and is
-	// divided into two pieces, just like the single stack you set up in
-	// mem_init:
+	// 对于NCPU个cpu，分别将 它们所对应的CPU栈 映射到对应的位置
+	// 
+	// 对于CPU i，它使用的物理位置 是percpu_kstacks[i]所对应的物理位置
+	// CPU i的 内核栈 从KSTACKTOP - i * (KSTKSIZE + KSTKGAP)开始往下增长。
+	// 它包括2个内容：
 	//     * [kstacktop_i - KSTKSIZE, kstacktop_i)
-	//          -- backed by physical memory
+	//          -- 正常栈的使用范围
 	//     * [kstacktop_i - (KSTKSIZE + KSTKGAP), kstacktop_i - KSTKSIZE)
-	//          -- not backed; so if the kernel overflows its stack,
-	//             it will fault rather than overwrite another CPU's stack.
-	//             Known as a "guard page".
-	//     Permissions: kernel RW, user NONE
-	//
+	//          -- KSTKGAP是用来防止 内核栈溢出时 修改了别的CPU的栈的内容(guard page)
+	//     权限: kernel RW, user NONE
+	// 
 	// LAB 4: Your code here:
-
+	uintptr_t start_addr = KSTACKTOP - KSTKSIZE;    
+    for (size_t i=0; i<NCPU; i++) {
+        boot_map_region(kern_pgdir, (uintptr_t) start_addr, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W | PTE_P);
+        start_addr -= (KSTKSIZE + KSTKGAP);
+    }
 }
 
 // --------------------------------------------------------------
