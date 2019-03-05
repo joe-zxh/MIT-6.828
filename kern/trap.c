@@ -14,7 +14,7 @@
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
 
-static struct Taskstate ts;
+static struct Taskstate ts; // 这个ts在lab4中 应该是没用的了
 // 在跳转到中断处理程序执行之前
 // 把 处理器的状态 保存到ts中，处理完中断后，再恢复
 

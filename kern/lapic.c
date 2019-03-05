@@ -43,7 +43,8 @@
 #define TDCR    (0x03E0/4)   // Timer Divide Configuration
 
 physaddr_t lapicaddr;        // Initialized in mpconfig.c
-volatile uint32_t *lapic;
+volatile uint32_t *lapic; // 应该是每个CPU都会运行lapic.c的代码
+// 所以每个CPU都会有lapic这个变量???
 
 static void
 lapicw(int index, int value)

@@ -8,6 +8,8 @@
         "console.h": "c",
         "types.h": "c",
         "trap.h": "c",
-        "env.h": "c"
+        "env.h": "c",
+        "spinlock.h": "c",
+        "cpu.h": "c"
     }
 }
