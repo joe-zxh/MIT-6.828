@@ -123,19 +123,23 @@ sys_env_set_status(envid_t envid, int status)
     return 0;
 }
 
-// Set the page fault upcall for 'envid' by modifying the corresponding struct
-// Env's 'env_pgfault_upcall' field.  When 'envid' causes a page fault, the
-// kernel will push a fault record onto the exception stack, then branch to
-// 'func'.
-//
-// Returns 0 on success, < 0 on error.  Errors are:
-//	-E_BAD_ENV if environment envid doesn't currently exist,
-//		or the caller doesn't have permission to change envid.
+// 为envid对应的进程设置page fault upcall
+// 但envid对应的进程出现了page fault，内核会 把一个fault近路压进exception栈，
+// 然后 转去执行func
+// 
+// 如果成功，返回0；如果失败，返回<0。错误有：
+//   -E_BAD_ENV: envid对应的进程不存在 或者 调用这没有修改权限
 static int
 sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
 	// LAB 4: Your code here.
-	panic("sys_env_set_pgfault_upcall not implemented");
+	// panic("sys_env_set_pgfault_upcall not implemented");
+	struct Env *e; 
+    if (envid2env(envid, &e, 1)){
+		return -E_BAD_ENV;
+	}
+    e->env_pgfault_upcall = func;
+    return 0;
 }
 
 // 为id为envid的进程 分配一个物理页，把它映射到va的位置，且设置权限为perm

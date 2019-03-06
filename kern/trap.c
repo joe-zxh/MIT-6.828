@@ -335,17 +335,21 @@ page_fault_handler(struct Trapframe *tf)
         panic("kernel page fault at:%x\n", fault_va);
     } 
 
-	// We've already handled kernel-mode exceptions, so if we get here,
-	// the page fault happened in user mode.
-
-	// Call the environment's page fault upcall, if one exists.  Set up a
-	// page fault stack frame on the user exception stack (below
-	// UXSTACKTOP), then branch to curenv->env_pgfault_upcall.
-	//
-	// The page fault upcall might cause another page fault, in which case
-	// we branch to the page fault upcall recursively, pushing another
-	// page fault stack frame on top of the user exception stack.
-	//
+	// 我们已经处理了kernel模式的异常了，如果我们运行到这个位置，说明在 用户模式出现了page fault.
+	// 
+	// 如果进程存在page fault upcall,那么调用它。
+	// 在exception stack上面设置一个page fault的stack frame(在UXSTACKTOP之下)
+	// 然后去执行curenv->env_pgfault_upcall
+	// 
+	// page fault upcall页可能会 产生另一个page fault, 然后递归出现page fault，
+	// 然后又 把另一个page fault stack frame压入 用户exception stack
+	// 
+	// 在lib/pfentry.S中返回的代码中，在trap-time stack的栈顶 需要加入一个word的额外空间
+	// 这让我们更加方便地恢复eip/esp
+	// 在非递归的情况中，我们不需要担心这种情况，因为正常的用户栈的顶部是空的。
+	// 在递归的情况中，我们需要在 当前exceptio stack的栈顶留一个word的长度，
+	// 因为exception stack是trap-time stack。
+	// 
 	// It is convenient for our code which returns from a page fault
 	// (lib/pfentry.S) to have one word of scratch space at the top of the
 	// trap-time stack; it allows us to more easily restore the eip/esp. In
@@ -354,20 +358,45 @@ page_fault_handler(struct Trapframe *tf)
 	// this means we have to leave an extra word between the current top of
 	// the exception stack and the new stack frame because the exception
 	// stack _is_ the trap-time stack.
+
+	// 如果没有page fault upcall，或者 进程不能在exception stack上分配物理页 或 没有写权限，
+	// 或者 exception stack溢出了，那么 直接杀死那个出错的进程。
 	//
 	// If there's no page fault upcall, the environment didn't allocate a
 	// page for its exception stack or can't write to it, or the exception
 	// stack overflows, then destroy the environment that caused the fault.
-	// Note that the grade script assumes you will first check for the page
-	// fault upcall and print the "user fault va" message below if there is
-	// none.  The remaining three checks can be combined into a single test.
-	//
-	// Hints:
-	//   user_mem_assert() and env_run() are useful here.
-	//   To change what the user environment runs, modify 'curenv->env_tf'
-	//   (the 'tf' variable points at 'curenv->env_tf').
+	// 
+	// 注意：打分的脚本 假设你先 检查page fault upcall，
+	// 如果出错，然后打印 "user fault va"消息。
+	// 剩下的三个check可以合并到一个test中。
+	// 
+	// 提示：
+	//   user_mem_assert()和env_run()在这里很有用。
+	//   要改变 用户进程运行的内容，修改'curenv->env_tf'
+	//   tf变量指向curenv->env_tf
 
 	// LAB 4: Your code here.
+	if (curenv->env_pgfault_upcall) {
+        struct UTrapframe *utf;
+        if (tf->tf_esp >= UXSTACKTOP-PGSIZE && tf->tf_esp <= UXSTACKTOP-1) {
+			// 嵌套递归的page fault
+            utf = (struct UTrapframe *)(tf->tf_esp - sizeof(struct UTrapframe) - 4); 
+        } else {
+            utf = (struct UTrapframe *)(UXSTACKTOP - sizeof(struct UTrapframe));
+        }   
+
+        user_mem_assert(curenv, (void*)utf, 1, PTE_W);
+        utf->utf_fault_va = fault_va;
+        utf->utf_err = tf->tf_err;
+        utf->utf_regs = tf->tf_regs;
+        utf->utf_eip = tf->tf_eip;
+        utf->utf_eflags = tf->tf_eflags;
+        utf->utf_esp = tf->tf_esp;
+
+        curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+        curenv->env_tf.tf_esp = (uintptr_t)utf;
+        env_run(curenv);
+    } 
 
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
