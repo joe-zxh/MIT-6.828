@@ -379,13 +379,14 @@ page_fault_handler(struct Trapframe *tf)
 	if (curenv->env_pgfault_upcall) {
         struct UTrapframe *utf;
         if (tf->tf_esp >= UXSTACKTOP-PGSIZE && tf->tf_esp <= UXSTACKTOP-1) {
-			// 嵌套递归的page fault
-            utf = (struct UTrapframe *)(tf->tf_esp - sizeof(struct UTrapframe) - 4); 
+			// 已经在User Exception Stack中了：嵌套递归的page fault
+            utf = (struct UTrapframe *)(tf->tf_esp - sizeof(struct UTrapframe) - 4);
+			// 递归的话，需要保留4个字节(一个word的大小)
         } else {
             utf = (struct UTrapframe *)(UXSTACKTOP - sizeof(struct UTrapframe));
         }   
 
-        user_mem_assert(curenv, (void*)utf, 1, PTE_W);
+        user_mem_assert(curenv, (void*)utf, 1, PTE_W);//检查User Exception Stack是否溢出了
         utf->utf_fault_va = fault_va;
         utf->utf_err = tf->tf_err;
         utf->utf_regs = tf->tf_regs;
@@ -394,7 +395,10 @@ page_fault_handler(struct Trapframe *tf)
         utf->utf_esp = tf->tf_esp;
 
         curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
-        curenv->env_tf.tf_esp = (uintptr_t)utf;
+		//把eip指向pgfault_upcall的地方
+        curenv->env_tf.tf_esp = (uintptr_t)utf; //把栈切换到 User Exception Stack上
+		//一个struct的内容在栈中的位置：先出现的属性放在低地址的地方，后出现的属性放在低地址的地方。
+		//所以utf现在指向栈的top的位置
         env_run(curenv);
     } 
 
