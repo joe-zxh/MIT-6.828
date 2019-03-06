@@ -81,13 +81,7 @@ sys_exofork(void)
 {
 	// 通过kern/env.c中的env_alloc()创建新的进程
 	// 进程状态设为ENV_NOT_RUNNABLE，把当前进程中的寄存器的内容 复制给 新的进程
-	// 微调一下，使得sys_exofork返回0
-
-	// Create the new environment with env_alloc(), from kern/env.c.
-	// It should be left as env_alloc created it, except that
-	// status is set to ENV_NOT_RUNNABLE, and the register set is copied
-	// from the current environment -- but tweaked so sys_exofork
-	// will appear to return 0.
+	// 微调一下，使得sys_exofork在子进程中返回0，在父进程中 返回childrenId
 
 	// LAB 4: Your code here.
 	// panic("sys_exofork not implemented");
@@ -103,28 +97,27 @@ sys_exofork(void)
 	return e->env_id;
 }
 
-// Set envid's env_status to status, which must be ENV_RUNNABLE
-// or ENV_NOT_RUNNABLE.
-//
-// Returns 0 on success, < 0 on error.  Errors are:
-//	-E_BAD_ENV if environment envid doesn't currently exist,
-//		or the caller doesn't have permission to change envid.
-//	-E_INVAL if status is not a valid status for an environment.
+// 把envid对应的进程状态设置为status，status参数必须为ENV_RUNNABLE或ENV_NOT_RUNNABLE
+// 
+// 如果成功，返回0；失败，返回<0。错误有：
+//   -E_BAD_ENV: envid对应的进程不存在，或者 调用者没有修改权限
+//   -E_INVAL: status参数 不合法
 static int
 sys_env_set_status(envid_t envid, int status)
 {
-	// Hint: Use the 'envid2env' function from kern/env.c to translate an
-	// envid to a struct Env.
-	// You should set envid2env's third argument to 1, which will
-	// check whether the current environment has permission to set
-	// envid's status.
+	// 提示：使用kern/env.c中的函数envid2env来把一个envid转换成一个进程Env
+	// envid2env的第3个参数需要设置成1，用于检查是否有修改进程的权限
 
 	// LAB 4: Your code here.
 	// panic("sys_env_set_status not implemented");
 	struct Env *e;
-    if (envid2env(envid, &e, 1)) return -E_BAD_ENV;
+    if (envid2env(envid, &e, 1)){
+		return -E_BAD_ENV;
+	}
     
-    if (status != ENV_NOT_RUNNABLE && status != ENV_RUNNABLE) return -E_INVAL;
+    if (status != ENV_NOT_RUNNABLE && status != ENV_RUNNABLE){
+		return -E_INVAL;
+	}
     
     e->env_status = status;
     return 0;
@@ -145,78 +138,69 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	panic("sys_env_set_pgfault_upcall not implemented");
 }
 
-// Allocate a page of memory and map it at 'va' with permission
-// 'perm' in the address space of 'envid'.
-// The page's contents are set to 0.
-// If a page is already mapped at 'va', that page is unmapped as a
-// side effect.
-//
-// perm -- PTE_U | PTE_P must be set, PTE_AVAIL | PTE_W may or may not be set,
-//         but no other bits may be set.  See PTE_SYSCALL in inc/mmu.h.
-//
-// Return 0 on success, < 0 on error.  Errors are:
-//	-E_BAD_ENV if environment envid doesn't currently exist,
-//		or the caller doesn't have permission to change envid.
-//	-E_INVAL if va >= UTOP, or va is not page-aligned.
-//	-E_INVAL if perm is inappropriate (see above).
-//	-E_NO_MEM if there's no memory to allocate the new page,
-//		or to allocate any necessary page tables.
+// 为id为envid的进程 分配一个物理页，把它映射到va的位置，且设置权限为perm
+// 物理页的内容设为0
+// 如果一个va已经映射了一个物理页了，那么 那个物理页就需要unmap一下
+// 
+// 参数perm：PTE_U | PTE_P是一定 要设置的，PTE_AVAIL | PTE_W可以设置，也可以不设置
+// 除这4个选项之外，不能设置别的权限。参考inc/mmu.h的 PTE_SYSCALL
+// 
+// 如果成功，返回0；如果失败，返回<0。错误有：
+//   -E_BAD_ENV: envid的进程不存在，或者 调用者没有权限修改这个进程的。
+// 	 -E_INVAL: va大于UTOP，或者va并不是 pageSize的整数倍
+//   -E_INVAL: perm的设置不合理
+//   -E_NO_MEM: 物理内存不够 分配一个新的页，或者一个新的 页表页。
 static int
 sys_page_alloc(envid_t envid, void *va, int perm)
 {
-	// Hint: This function is a wrapper around page_alloc() and
-	//   page_insert() from kern/pmap.c.
-	//   Most of the new code you write should be to check the
-	//   parameters for correctness.
-	//   If page_insert() fails, remember to free the page you
-	//   allocated!
+	// 提示：这个函数 相当于kern/pmap.c中的page_alloc()和page_insert()的封装
+	//   你写的代码必须检查参数的正确性
+	//   如果page_insert()失败了，记得 释放你所分配的物理页。
 
 	// LAB 4: Your code here.
 	// panic("sys_page_alloc not implemented");
 	struct Env *e;
-    if (envid2env(envid, &e, 1) < 0) return -E_BAD_ENV;
+    if (envid2env(envid, &e, 1) < 0){
+		return -E_BAD_ENV;
+	}
 
-    int valid_perm = (PTE_U|PTE_P);
+    int valid_perm = (PTE_U|PTE_P); //检查perm是否是合理的
     if (va >= (void *)UTOP || (perm & valid_perm) != valid_perm) {
         return -E_INVAL;
     }
 
-    struct PageInfo *p = page_alloc(1);
-    if (!p) return -E_NO_MEM;
+    struct PageInfo *p = page_alloc(1);//分配一个物理页
+    if (!p){
+		return -E_NO_MEM;
+	}
 
-    int ret = page_insert(e->env_pgdir, p, va, perm);
-    if (ret) {
+    int ret = page_insert(e->env_pgdir, p, va, perm);//映射
+    if (ret) { //映射失败需要释放物理页
         page_free(p);
     }
     return ret;
 }
 
-// Map the page of memory at 'srcva' in srcenvid's address space
-// at 'dstva' in dstenvid's address space with permission 'perm'.
-// Perm has the same restrictions as in sys_page_alloc, except
-// that it also must not grant write access to a read-only
-// page.
-//
-// Return 0 on success, < 0 on error.  Errors are:
-//	-E_BAD_ENV if srcenvid and/or dstenvid doesn't currently exist,
-//		or the caller doesn't have permission to change one of them.
-//	-E_INVAL if srcva >= UTOP or srcva is not page-aligned,
-//		or dstva >= UTOP or dstva is not page-aligned.
-//	-E_INVAL is srcva is not mapped in srcenvid's address space.
-//	-E_INVAL if perm is inappropriate (see sys_page_alloc).
-//	-E_INVAL if (perm & PTE_W), but srcva is read-only in srcenvid's
-//		address space.
-//	-E_NO_MEM if there's no memory to allocate any necessary page tables.
+// 把id为srcenvid进程的虚拟地址为srcva对应的物理页，也映射到
+//   id为dstenvid进程的虚拟地址为dstva对应的物理页上。
+// 权限为perm。perm的格式和sys_page_alloc要求的相同，但它
+// 还需要保证 不能对一个只读的物理页 有写权限。
+// 
+// 如果成功，返回0；如果失败，返回<0。错误有：
+//   -E_BAD_ENV: srcenvid或dstenvid的进程不存在，或者调用者 没有权限更改它们
+//   -E_INVAL: srcva>=UTOP或者srcva不是pageSize的整数倍；
+// 				dstva>=UTOP或者dstva不是pageSize的整数倍；
+//   -E_INVAL: srcenvid的进程中 还没映射srcva上的地址。
+//   -E_INVAL: perm不符要求(参考 sys_page_alloc的perm要求)
+//   -E_INVAL: perm&PTE_W==PTE_W，但srcva只有只读权限
+//   -E_NO_MEM: 内存不够分配页表页。
 static int
 sys_page_map(envid_t srcenvid, void *srcva,
 	     envid_t dstenvid, void *dstva, int perm)
 {
-	// Hint: This function is a wrapper around page_lookup() and
-	//   page_insert() from kern/pmap.c.
-	//   Again, most of the new code you write should be to check the
-	//   parameters for correctness.
-	//   Use the third argument to page_lookup() to
-	//   check the current permissions on the page.
+	// 提示：这个函数是kern/pmap.c的page_lookup()和page_insert()的封装
+	//   同样地，你需要检查参数的正确性
+	//   使用page_lookcup()的第3个参数来检查物理页的当前权限。
 
 	// LAB 4: Your code here.
 	// panic("sys_page_map not implemented");
@@ -225,41 +209,51 @@ sys_page_map(envid_t srcenvid, void *srcva,
         return -E_BAD_ENV;
     }
 
-    if (srcva >= (void *)UTOP || dstva >= (void *)UTOP || PGOFF(srcva) || PGOFF(dstva)) {
+    if (srcva >= (void *)UTOP || dstva >= (void *)UTOP || PGOFF(srcva)!=0 || PGOFF(dstva)!=0) {
+		//PGOFF(va)!=0说明va并不是页对齐的
         return -E_INVAL;
     }
 
     pte_t *pte;
     struct PageInfo *p = page_lookup(srcenv->env_pgdir, srcva, &pte);
-    if (!p) return -E_INVAL;
+    if (!p){
+		return -E_INVAL;
+	} 
 
     int valid_perm = (PTE_U|PTE_P);
-    if ((perm&valid_perm) != valid_perm) return -E_INVAL;
+    if ((perm&valid_perm) != valid_perm){
+		return -E_INVAL;
+	} 
 
-    if ((perm & PTE_W) && !(*pte & PTE_W)) return -E_INVAL;
+    if ((perm & PTE_W) && !(*pte & PTE_W)){
+		return -E_INVAL;
+	}
 
     int ret = page_insert(dstenv->env_pgdir, p, dstva, perm);
     return ret;
 }
 
-// Unmap the page of memory at 'va' in the address space of 'envid'.
-// If no page is mapped, the function silently succeeds.
-//
-// Return 0 on success, < 0 on error.  Errors are:
-//	-E_BAD_ENV if environment envid doesn't currently exist,
-//		or the caller doesn't have permission to change envid.
-//	-E_INVAL if va >= UTOP, or va is not page-aligned.
+// 取消envid对应的进程在虚拟地址va上的映射。
+// 如果va并没有映射一个物理页，直接返回成功。
+// 
+// 如果成功，返回0；如果失败，返回<0。错误有：
+//   -E_BAD_ENV: envid对应的进程不存在，或者调用者没有修改权限
+//   -E_INVAL: va>=UTOP，或者va不是页对齐的
 static int
 sys_page_unmap(envid_t envid, void *va)
 {
-	// Hint: This function is a wrapper around page_remove().
+	// 提示：这个函数是page_remove()的封装
 
 	// LAB 4: Your code here.
 	// panic("sys_page_unmap not implemented");
 	struct Env *e;
-    if (envid2env(envid, &e, 1)) return -E_BAD_ENV;
+    if (envid2env(envid, &e, 1)){
+		return -E_BAD_ENV;
+	}
 
-    if (va >= (void *)UTOP) return -E_INVAL;
+    if (va >= (void *)UTOP || PGOFF(va)!=0){
+		return -E_INVAL;
+	}
 
     page_remove(e->env_pgdir, va);
     return 0;
