@@ -12,7 +12,7 @@ extern void _pgfault_upcall(void);
 
 // Pointer to currently installed C-language pgfault handler.
 void (*_pgfault_handler)(struct UTrapframe *utf);
-
+// 这个_pgfault_handler是全局的，将会在pfentry.S中被调用
 
 
 // 
