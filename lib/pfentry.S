@@ -61,11 +61,12 @@ _pgfault_upcall:
 	// ways as registers become unavailable as scratch space.
 	//
 	// LAB 4: Your code here.
-	movl 0x28(%esp), %ebx  # trap-time eip
-	subl $0x4, 0x30(%esp)  # trap-time esp minus 4
-	movl 0x30(%esp), %eax 
+	movl 40(%esp), %ebx  # trap-time eip
+	subl $4, 48(%esp)  # trap-time esp minus 4
+	movl 48(%esp), %eax 
 	movl %ebx, (%eax)      # trap-time esp store trap-time eip
-	addl $0x8, %esp
+	addl $8, %esp
+	// 这里不想看了，可以参考：https://www.jianshu.com/p/d9b6dcce1c48 里面栈的图。尽管和这里不太一样
 
 	// 恢复trap-time的寄存器。在此之后，不能再修改 通用寄存器了。
 	// LAB 4: Your code here.
@@ -75,7 +76,7 @@ _pgfault_upcall:
 	// no longer use arithmetic operations or anything else that
 	// modifies eflags.
 	// LAB 4: Your code here.
-	addl $0x4, %esp
+	addl $4, %esp
     popfl
 
 	// Switch back to the adjusted trap-time stack.
