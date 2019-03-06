@@ -38,7 +38,8 @@ duppage(envid_t dstenv, void *addr)
 }
 
 envid_t
-dumbfork(void)
+dumbfork(void) // 这是用户程序定义的fork(),它会产生一个 和父进程完全一样的进程。
+// 但这样的效率很低；在Part B中，我们 会实现一个Copy-On-Write的版本
 {
 	envid_t envid;
 	uint8_t *addr;
