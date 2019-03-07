@@ -26,17 +26,17 @@
 
 #define MAXFILESIZE	((NDIRECT + NINDIRECT) * BLKSIZE)
 
-struct File {
+struct File { // 一个文件的meta data。实际的数据块 由f_direct和f_indirect来指定
 	char f_name[MAXNAMELEN];	// filename
 	off_t f_size;			// file size in bytes
-	uint32_t f_type;		// file type
+	uint32_t f_type;		// 文件 或者 文件夹
 
 	// Block pointers.
 	// A block is allocated iff its value is != 0.
 	uint32_t f_direct[NDIRECT];	// direct blocks
 	uint32_t f_indirect;		// indirect block
 
-	// Pad out to 256 bytes; must do arithmetic in case we're compiling
+	// 对齐到 256 字节; must do arithmetic in case we're compiling
 	// fsformat on a 64-bit machine.
 	uint8_t f_pad[256 - MAXNAMELEN - 8 - 4*NDIRECT - 4];
 } __attribute__((packed));	// required only on some 64-bit machines
