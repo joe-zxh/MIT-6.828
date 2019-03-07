@@ -52,6 +52,13 @@ void t_mchk();
 void t_simderr();
 void t_syscall();
 
+void irq_timer();
+void irq_kbd();
+void irq_serial();
+void irq_spurious();
+void irq_ide();
+void irq_error();
+
 static const char *trapname(int trapno)
 {
 	static const char * const excnames[] = {
@@ -113,6 +120,14 @@ trap_init(void)
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, t_simderr, 0);
 	SETGATE(idt[T_SYSCALL], 0, GD_KT, t_syscall, 3);
 	//系统调用是允许用户模式下调用的
+
+	//trap.c的trap_init()
+	SETGATE(idt[IRQ_OFFSET+IRQ_TIMER], 0, GD_KT, irq_timer, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_KBD], 0, GD_KT, irq_kbd, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_SERIAL], 0, GD_KT, irq_serial, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_SPURIOUS], 0, GD_KT, irq_spurious, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_IDE], 0, GD_KT, irq_ide, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_ERROR], 0, GD_KT, irq_error, 0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -247,6 +262,11 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+       lapic_eoi();
+       sched_yield();
+       return;
+	}
 
 
 	// Unexpected trap: The user process or the kernel has a bug.

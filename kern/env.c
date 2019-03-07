@@ -261,8 +261,9 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	e->env_tf.tf_cs = GD_UT | 3;
 	// e->env_tf.tf_eip 会在后面的load_icode函数中设置
 
-	// Enable interrupts while in user mode.
+	// 用户模式下，允许中断
 	// LAB 4: Your code here.
+	e->env_tf.tf_eflags |= FL_IF;
 
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
