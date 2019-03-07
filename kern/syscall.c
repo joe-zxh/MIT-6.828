@@ -263,44 +263,34 @@ sys_page_unmap(envid_t envid, void *va)
     return 0;
 }
 
-// Try to send 'value' to the target env 'envid'.
-// If srcva < UTOP, then also send page currently mapped at 'srcva',
-// so that receiver gets a duplicate mapping of the same page.
-//
-// The send fails with a return value of -E_IPC_NOT_RECV if the
-// target is not blocked, waiting for an IPC.
-//
-// The send also can fail for the other reasons listed below.
-//
-// Otherwise, the send succeeds, and the target's ipc fields are
-// updated as follows:
-//    env_ipc_recving is set to 0 to block future sends;
-//    env_ipc_from is set to the sending envid;
-//    env_ipc_value is set to the 'value' parameter;
-//    env_ipc_perm is set to 'perm' if a page was transferred, 0 otherwise.
-// The target environment is marked runnable again, returning 0
-// from the paused sys_ipc_recv system call.  (Hint: does the
-// sys_ipc_recv function ever actually return?)
-//
-// If the sender wants to send a page but the receiver isn't asking for one,
-// then no page mapping is transferred, but no error occurs.
-// The ipc only happens when no errors occur.
-//
-// Returns 0 on success, < 0 on error.
-// Errors are:
-//	-E_BAD_ENV if environment envid doesn't currently exist.
-//		(No need to check permissions.)
-//	-E_IPC_NOT_RECV if envid is not currently blocked in sys_ipc_recv,
-//		or another environment managed to send first.
-//	-E_INVAL if srcva < UTOP but srcva is not page-aligned.
-//	-E_INVAL if srcva < UTOP and perm is inappropriate
-//		(see sys_page_alloc).
-//	-E_INVAL if srcva < UTOP but srcva is not mapped in the caller's
-//		address space.
-//	-E_INVAL if (perm & PTE_W), but srcva is read-only in the
-//		current environment's address space.
-//	-E_NO_MEM if there's not enough memory to map srcva in envid's
-//		address space.
+// 尝试把一个值'value'发送给 目标进程'envid'
+// 如果 srcva<UTOP，那么 srcva 映射到的物理页 也需要发送过去，
+// 这样 接受者 就会共享这个 物理页。
+// 
+// 如果 目标的接收进程 不在阻塞状态中(并在 等待IPC)，那么 返回-E_IPC_NOT_RECV
+// 
+// 发送 也可能因为 别的原因失败。错误类型 会列在下面。
+// 
+// 如果 发送成功，接受数据的进程 的ipc的各个属性 会更新成如下：
+//   env_ipc_recving设置为0，表示 不再接受 数据。
+//   env_ipc_from设置为 发送数据的 进程的envid
+//   env_ipc_value设置为 要发送的数据value值
+//   env_ipc_perm设置为 perm(如果 有需要 映射的虚拟页, 即dstva<UTOP)
+// 接受数据的进程 被设置为RUNNABLE，然后在sys_ipc_recv调用中返回0
+// (提示：sys_ipc_recv最后真的会 返回吗?)
+// 
+// 如果发送这 想发送一个物理页，但 接受者 不想要，那么不需要 把 物理页 映射到 dstva上，没有错误发生。
+// 
+// 如果成功返回0，失败返回<0。错误有：
+//   -E_BAD_ENV：envid的进程不存在（注意：不需要检查 是否有 修改env的权限）
+//   -E_IPC_NOT_RECV：envid的进程当前并不 阻塞等待接受消息，或者 已经 有别的进程 已经 向它发送过消息了
+//   -E_INVAL：srcva<UTOP，但srcva并不是 页对齐的
+//   -E_INVAL：srcva<UTOP，但perm不是合法的(合法的perm 请看sys_page_alloc)
+//   -E_INVAL：srcva<UTOP，但srcv在发送进程 中 还没映射到物理页上
+//   -E_INVAL：如果perm中有PTE_W的权限，但srcva只有 只读的权限。
+//   -E_NO_MEM if there's not enough memory to map srcva in envid's
+//		address space.(说错了??? srcva上面不是映射过物理页了吗???)
+// 
 static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
@@ -308,26 +298,40 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	// panic("sys_ipc_try_send not implemented");
 
 	struct Env *e; 
-    if (envid2env(envid, &e, 0)) return -E_BAD_ENV;
+    if (envid2env(envid, &e, 0)){ //checkperm设置0，不需要 检查权限
+		return -E_BAD_ENV;
+	}
 
-    if (!e->env_ipc_recving) return -E_IPC_NOT_RECV;
+    if (!e->env_ipc_recving){ //检查目标进程是否在阻塞接受中
+		return -E_IPC_NOT_RECV;
+	}
 
-    if (srcva < (void *) UTOP) {
-        if(PGOFF(srcva)) return -E_INVAL;
+    if (srcva < (void *) UTOP) { //检查 能否共享物理页
+        if(PGOFF(srcva)){ // 没有页对齐
+			return -E_INVAL;
+		}
 
         pte_t *pte;
         struct PageInfo *p = page_lookup(curenv->env_pgdir, srcva, &pte);
-        if (!p) return -E_INVAL;
+        if (!p){
+			return -E_INVAL;
+		}
 
-        if ((*pte & perm) != perm) return -E_INVAL;
+        if ((*pte & perm) != perm){
+			return -E_INVAL;
+		}
 
-        if ((perm & PTE_W) && !(*pte & PTE_W)) return -E_INVAL;
+        if ((perm & PTE_W) && !(*pte & PTE_W)){//如果perm中有PTE_W的权限，但srcva只有 只读的权限。
+			return -E_INVAL;
+		}
 
-        if (e->env_ipc_dstva < (void *)UTOP) {
+        if (e->env_ipc_dstva < (void *)UTOP) {//共享物理页
             int ret = page_insert(e->env_pgdir, p, e->env_ipc_dstva, perm);
-            if (ret) return ret;
+            if (ret){
+				return ret;
+			}
             e->env_ipc_perm = perm;
-        }   
+        }//否则 也不需要报错   
     }   
 
     e->env_ipc_recving = 0;
@@ -338,25 +342,27 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
     return 0;
 }
 
-// Block until a value is ready.  Record that you want to receive
-// using the env_ipc_recving and env_ipc_dstva fields of struct Env,
-// mark yourself not runnable, and then give up the CPU.
-//
-// If 'dstva' is < UTOP, then you are willing to receive a page of data.
-// 'dstva' is the virtual address at which the sent page should be mapped.
-//
-// This function only returns on error, but the system call will eventually
-// return 0 on success.
-// Return < 0 on error.  Errors are:
-//	-E_INVAL if dstva < UTOP but dstva is not page-aligned.
+// 阻塞，直到一个值被 接受到。
+// 通过设置env_ipc_recving=1 和 env_ipc_dstva，来告诉别的 进程，你希望接受值。
+// 标记 自己为 不可运行，然后 释放CPU的使用权。
+// 
+// 如果dstva<UTOP，那么 该进程希望接受 一个物理页的数据。
+// dstva是 该发送的物理页 应该映射到的位置
+// 
+// 如果成功，返回0；失败返回<0。错误有：
+//   -E_INVAL: 如果dstva<UTOP且dstva不是页对齐的。
 static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
 	// panic("sys_ipc_recv not implemented");
 
-	if ((dstva < (void *)UTOP) && PGOFF(dstva))
-        return -E_INVAL;
+	// 如果作为参数的虚拟地址在 UTOP 之上，只需要忽略，而不是报错退出。
+	// 因为这种情况是说明接收者只需要接收值，而不需要共享页面（联想在 lib/ipc.c 中的处理）
+
+	if ((dstva < (void *)UTOP) && PGOFF(dstva)){//不是page-aligned的
+		return -E_INVAL;
+	}        
 
     curenv->env_ipc_recving = 1;
     curenv->env_status = ENV_NOT_RUNNABLE;
@@ -400,9 +406,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_page_unmap(a1, (void *)a2);
 		case (SYS_env_set_pgfault_upcall):
 			return sys_env_set_pgfault_upcall(a1, (void *)a2);
-		case SYS_ipc_try_send:
+		case (SYS_ipc_try_send):
         	return sys_ipc_try_send(a1, a2, (void *)a3, a4);
-    	case SYS_ipc_recv:
+    	case (SYS_ipc_recv):
         	return sys_ipc_recv((void *)a1);
         default:
             return -E_INVAL;
