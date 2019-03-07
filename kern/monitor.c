@@ -59,9 +59,38 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	cprintf("Stack backtrace:\n");
+
+	uint32_t ebp = read_ebp();//如果用指针的话，read_ebp返回的指针就刚好是当前ebp的位置
+	//这样后面就不需要疯狂地使用汇编代码了。可以参考：https://github.com/shishujuan/mit6.828-2017/blob/master/docs/lab1-exercize.md
+	uint32_t eip;
+	uint32_t args[5];
+	struct Eipdebuginfo info;
+
+	while(ebp!=0){
+		asm volatile("movl 0x4(%1),%0" : "=r" (eip) : "r"(ebp));
+
+		asm volatile("movl 0x8(%1),%0" : "=r" (args[0]) : "r"(ebp));
+		asm volatile("movl 0xc(%1),%0" : "=r" (args[1]) : "r"(ebp));
+		asm volatile("movl 0x10(%1),%0" : "=r" (args[2]) : "r"(ebp));
+		asm volatile("movl 0x14(%1),%0" : "=r" (args[3]) : "r"(ebp));
+		asm volatile("movl 0x18(%1),%0" : "=r" (args[4]) : "r"(ebp));
+
+		cprintf("  ebp %x  eip %x  args %08x %08x %08x %08x %08x\n",ebp,eip,args[0],args[1],args[2],args[3],args[4]);
+		
+		int ret = debuginfo_eip(eip, &info);	
+		//cprintf("返回值：%d\n", ret);
+		
+		//cprintf("%d\n", info.eip_line);
+		cprintf("         %s:%d:",info.eip_file,info.eip_line);
+		cprintf(" %.*s", info.eip_fn_namelen, info.eip_fn_name);
+		cprintf("+%d\n", eip-info.eip_fn_addr);
+
+		asm volatile("movl (%1),%0" : "=r" (ebp) : "r"(ebp));//上一个函数的ebp
+	}
+
 	return 0;
 }
-
 
 
 /***** Kernel monitor command interpreter *****/

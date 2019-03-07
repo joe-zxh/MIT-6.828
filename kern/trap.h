@@ -1,5 +1,5 @@
 /* See COPYRIGHT for copyright information. */
-
+// trap是陷入内核的意思
 #ifndef JOS_KERN_TRAP_H
 #define JOS_KERN_TRAP_H
 #ifndef JOS_KERNEL

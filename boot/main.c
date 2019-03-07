@@ -8,6 +8,7 @@
  * DISK LAYOUT
  *  * This program(boot.S and main.c) is the bootloader.  It should
  *    be stored in the first sector of the disk.
+ *    第1个扇区放的是bootloader，第2个扇区放的是kernel
  *
  *  * The 2nd sector onward holds the kernel image.
  *
@@ -29,7 +30,7 @@
  *  * bootmain() in this file takes over, reads in the kernel and jumps to it.
  **********************************************************************/
 
-#define SECTSIZE	512
+#define SECTSIZE	512 //扇区大小是512字节
 #define ELFHDR		((struct Elf *) 0x10000) // scratch space
 
 void readsect(void*, uint32_t);
@@ -38,10 +39,11 @@ void readseg(uint32_t, uint32_t, uint32_t);
 void
 bootmain(void)
 {
-	struct Proghdr *ph, *eph;
+	struct Proghdr *ph, *eph; //program header, end of program header
 	int i;
 
-	// read 1st page off disk
+	// read 1st page off disk 先把内核的第一页读到 内存位置为0x00100000的地方
+	// 读取8个扇区(8*512=4MB=1页)
 	readseg((uint32_t) ELFHDR, SECTSIZE*8, 0);
 
 	// is this a valid ELF?
@@ -49,8 +51,10 @@ bootmain(void)
 		goto bad;
 
 	// load each program segment (ignores ph flags)
+	// 实际上就是相当于 把整个程序给加载到内存中(因为 整个内核应该会超过4MB，而 它的ELF头部应该不会超过4MB， 所以可以先加载第一页，再通过program header table把剩余的segment全部加载进来)
+	// 关于EFL的文件格式，以及 ELF的数据结构，可以参考：https://jzhihui.iteye.com/blog/1447570
 	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
-	eph = ph + ELFHDR->e_phnum;
+	eph = ph + ELFHDR->e_phnum; //end of program header
 	for (; ph < eph; ph++) {
 		// p_pa is the load address of this segment (as well
 		// as the physical address)
@@ -63,6 +67,7 @@ bootmain(void)
 	// call the entry point from the ELF header
 	// note: does not return!
 	((void (*)(void)) (ELFHDR->e_entry))();
+	// 加载完内核的程序之后，就可以开始执行了：把控制权 交给操作系统了
 
 bad:
 	outw(0x8A00, 0x8A00);
@@ -94,7 +99,7 @@ readseg(uint32_t pa, uint32_t count, uint32_t offset)
 		// an identity segment mapping (see boot.S), we can
 		// use physical addresses directly.  This won't be the
 		// case once JOS enables the MMU.
-		readsect((uint8_t*) pa, offset);
+		readsect((uint8_t*) pa, offset); //好像这里 指针 和 数 是可以相互转换的。
 		pa += SECTSIZE;
 		offset++;
 	}
@@ -109,7 +114,7 @@ waitdisk(void)
 }
 
 void
-readsect(void *dst, uint32_t offset)
+readsect(void *dst, uint32_t offset) //要访问磁盘I/O进行读
 {
 	// wait for disk to be ready
 	waitdisk();

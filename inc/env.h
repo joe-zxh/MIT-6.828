@@ -17,13 +17,10 @@ typedef int32_t envid_t;
 // +------------------------------------+------------------+
 //                                       \--- ENVX(eid) --/
 //
-// The environment index ENVX(eid) equals the environment's index in the
-// 'envs[]' array.  The uniqueifier distinguishes environments that were
-// created at different times, but share the same environment index.
-//
-// All real environments are greater than 0 (so the sign bit is zero).
-// envid_ts less than 0 signify errors.  The envid_t == 0 is special, and
-// stands for the current environment.
+// 最后10位：ENVX(eid)就是 进程在 数组envs[]中的索引。
+// 中间21位：标识符，表示 在不同时间创建，但是 使用相同的ENVX(eid)的进程
+// 第1位：是sign bit，0表示没有出错，1表示有错误。
+// The envid_t == 0 is special, and stands for the current environment.
 
 #define LOG2NENV		10
 #define NENV			(1 << LOG2NENV)
@@ -45,13 +42,13 @@ enum EnvType {
 };
 
 struct Env {
-	struct Trapframe env_tf;	// Saved registers
-	struct Env *env_link;		// Next free Env
+	struct Trapframe env_tf;	// Saved registers 保存的寄存器的值
+	struct Env *env_link;		// Next free Env： env_free_list中下一个空的Env的位置
 	envid_t env_id;			// Unique environment identifier
 	envid_t env_parent_id;		// env_id of this env's parent
 	enum EnvType env_type;		// Indicates special system environments
-	unsigned env_status;		// Status of the environment
-	uint32_t env_runs;		// Number of times environment has run
+	unsigned env_status;		// Status of the environment： RUNNABLE, RUNNING等...
+	uint32_t env_runs;		// Number of times environment has run：应该是用于换入、换出策略的
 	int env_cpunum;			// The CPU that the env is running on
 
 	// Address space

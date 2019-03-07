@@ -12,15 +12,15 @@ extern void _pgfault_upcall(void);
 
 // Pointer to currently installed C-language pgfault handler.
 void (*_pgfault_handler)(struct UTrapframe *utf);
+// 这个_pgfault_handler是全局的，将会在pfentry.S中被调用
 
-//
-// Set the page fault handler function.
-// If there isn't one yet, _pgfault_handler will be 0.
-// The first time we register a handler, we need to
-// allocate an exception stack (one page of memory with its top
-// at UXSTACKTOP), and tell the kernel to call the assembly-language
-// _pgfault_upcall routine when a page fault occurs.
-//
+
+// 
+// 设置page fault handler函数
+// 如果现在还没有page fault handler函数，那么_pgfault_handler将会是0
+// 我们第一次注册handler的时候，我们需要在UXSTACKTOP上分配一个exception stack
+// 然后 在发生page fault时，告诉内核 去调用 汇编代码的_pgfault_upcall。
+// 
 void
 set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 {
@@ -29,7 +29,16 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 	if (_pgfault_handler == 0) {
 		// First time through!
 		// LAB 4: Your code here.
-		panic("set_pgfault_handler not implemented");
+		// panic("set_pgfault_handler not implemented");
+		envid_t e_id = sys_getenvid();
+		if (sys_page_alloc(e_id, (void *)(UXSTACKTOP - PGSIZE), PTE_W|PTE_U|PTE_P)) {
+			// 分配exception stack
+            panic("set_pgfault_handler page_alloc failed");
+        }   
+        if (sys_env_set_pgfault_upcall(e_id, _pgfault_upcall)!=0) {
+			// 注册_pgfault_upcall
+            panic("set_pgfault_handler set_pgfault_upcall failed");
+        }
 	}
 
 	// Save handler pointer for assembly to call.

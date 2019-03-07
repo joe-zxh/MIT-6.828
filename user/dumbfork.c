@@ -16,7 +16,7 @@ umain(int argc, char **argv)
 	who = dumbfork();
 
 	// print a message and yield to the other a few times
-	for (i = 0; i < (who ? 10 : 20); i++) {
+	for (i = 0; i < (who ? 10 : 20); i++) { // 子进程跑20次，父进程跑10次
 		cprintf("%d: I am the %s!\n", i, who ? "parent" : "child");
 		sys_yield();
 	}
@@ -38,12 +38,17 @@ duppage(envid_t dstenv, void *addr)
 }
 
 envid_t
-dumbfork(void)
+dumbfork(void) // 这是用户程序定义的fork(),它会产生一个 和父进程完全一样的进程。
+// 但这样的效率很低；在Part B中，我们 会实现一个Copy-On-Write的版本
 {
 	envid_t envid;
 	uint8_t *addr;
 	int r;
 	extern unsigned char end[];
+
+	// 分配一个子进程。
+	// 内核 会用 某个 (寄存器状态的副本)来初始化它
+	// 因此，这个 子进程 会像是 调用了sys_exofork一样...后面没看懂
 
 	// Allocate a new child environment.
 	// The kernel will initialize it with a copy of our register state,

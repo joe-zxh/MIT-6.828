@@ -25,8 +25,8 @@
 	.globl name;		/* define global symbol for 'name' */	\
 	.type name, @function;	/* symbol type is function */		\
 	.align 2;		/* align function definition */		\
-	name:			/* function starts here */		\
-	pushl $(num);							\
+	name:			/* function starts here 这个地方 应该会自动 压入一个 error code*/		\
+	pushl $(num);	/* 压入trapno */						\
 	jmp _alltraps
 
 /* Use TRAPHANDLER_NOEC for traps where the CPU doesn't push an error code.
@@ -39,7 +39,7 @@
 	.align 2;							\
 	name:								\
 	pushl $0;							\
-	pushl $(num);							\
+	pushl $(num);	/* 压入trapno */			\
 	jmp _alltraps
 
 .text
@@ -47,10 +47,54 @@
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
+TRAPHANDLER_NOEC(t_divide, T_DIVIDE)
+TRAPHANDLER_NOEC(t_debug, T_DEBUG)
+TRAPHANDLER_NOEC(t_nmi, T_NMI)
+TRAPHANDLER_NOEC(t_brkpt, T_BRKPT)
+TRAPHANDLER_NOEC(t_oflow, T_OFLOW)
+TRAPHANDLER_NOEC(t_bound, T_BOUND)
+TRAPHANDLER_NOEC(t_illop, T_ILLOP)
+TRAPHANDLER_NOEC(t_device, T_DEVICE)
+TRAPHANDLER(t_dblflt, T_DBLFLT)
+TRAPHANDLER(t_tss, T_TSS)
+TRAPHANDLER(t_segnp, T_SEGNP)
+TRAPHANDLER(t_stack, T_STACK)
+TRAPHANDLER(t_gpflt, T_GPFLT)
+TRAPHANDLER(t_pgflt, T_PGFLT)
+TRAPHANDLER_NOEC(t_fperr, T_FPERR)
+TRAPHANDLER(t_align, T_ALIGN)
+TRAPHANDLER_NOEC(t_mchk, T_MCHK)
+TRAPHANDLER_NOEC(t_simderr, T_SIMDERR)
 
+TRAPHANDLER_NOEC(t_syscall, T_SYSCALL)
 
+TRAPHANDLER_NOEC(irq_timer, IRQ_OFFSET + IRQ_TIMER)
+TRAPHANDLER_NOEC(irq_kbd, IRQ_OFFSET + IRQ_KBD)
+TRAPHANDLER_NOEC(irq_serial, IRQ_OFFSET + IRQ_SERIAL)
+TRAPHANDLER_NOEC(irq_spurious, IRQ_OFFSET + IRQ_SPURIOUS)
+TRAPHANDLER_NOEC(irq_ide, IRQ_OFFSET + IRQ_IDE)
+TRAPHANDLER_NOEC(irq_error, IRQ_OFFSET + IRQ_ERROR)
 
 /*
  * Lab 3: Your code here for _alltraps
  */
+_alltraps:
+	pushl %ds /* 压入Trapframe->tf_ds */
+	pushl %es /* 压入Trapframe->tf_es */
+	pushal /* 压入Trapframe->tf_regs */
+	/* 加上进入内核时，自动压入的 SS, ESP, EFLAGS, CS, EIP 和 在TRAPHANDLER压入errno 和 trapno*/
+	/* kernel栈的结构为： 
+	低地址                                                       高地址
+	+---------------------------------------------------------------+             
+	|regs | es | ds | trapno | errno | eip | cs | eflags | esp | ss |
+	+---------------------------------------------------------------+
+	也就是 在栈中，模拟了一个Trapframe的参数
+	*/
+
+	movl $GD_KD, %eax
+	movw %ax, %ds /* kernel的data segment 设为GD_KD*/
+	movw %ax, %es /* extra segment 设为GD_KD*/
+
+	push %esp /* esp指针位置 存的就是Trapframe的内容，esp作为参数 传递给trap函数 */
+	call trap	
 

@@ -13,7 +13,7 @@
 struct CpuInfo cpus[NCPU];
 struct CpuInfo *bootcpu;
 int ismp;
-int ncpu;
+int ncpu; // 记录cpu的总个数
 
 // Per-CPU kernel stacks
 unsigned char percpu_kstacks[NCPU][KSTKSIZE]
@@ -24,7 +24,7 @@ __attribute__ ((aligned(PGSIZE)));
 
 struct mp {             // floating pointer [MP 4.1]
 	uint8_t signature[4];           // "_MP_"
-	physaddr_t physaddr;            // phys addr of MP config table
+	physaddr_t physaddr;            // MP config table的物理位置
 	uint8_t length;                 // 1
 	uint8_t specrev;                // [14]
 	uint8_t checksum;               // all bytes must add up to 0
@@ -93,11 +93,10 @@ mpsearch1(physaddr_t a, int len)
 	return NULL;
 }
 
-// Search for the MP Floating Pointer Structure, which according to
-// [MP 4] is in one of the following three locations:
-// 1) in the first KB of the EBDA;
-// 2) if there is no EBDA, in the last KB of system base memory;
-// 3) in the BIOS ROM between 0xE0000 and 0xFFFFF.
+// 寻找MP Floating Point Structure，根据[MP 4]，MPFPS可能 会在以下位置出现：
+// 1) 在Extended BIOS Data Area的前1KB处
+// 2) 在base memory(0x00000~0xA0000)的最后1KB中。
+// 3) 在BIOS ROM中(0xE0000~0xFFFFF)
 static struct mp *
 mpsearch(void)
 {
@@ -163,7 +162,8 @@ mpconfig(struct mp **pmp)
 }
 
 void
-mp_init(void)
+mp_init(void) // BSP通过读取驻留在BIOS内存区域中的MP配置表来获取
+// 多处理器系统的信息：比如CPU数目，CPU的APIC ID和LAPIC单元的MMIO地址
 {
 	struct mp *mp;
 	struct mpconf *conf;
