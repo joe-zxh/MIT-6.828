@@ -63,7 +63,7 @@ bc_pgfault(struct UTrapframe *utf)
 
 	// Check that the block we read was allocated. (exercise for
 	// the reader: why do we do this *after* reading the block
-	// in?) 我也不知道为什么...
+	// in?) 因为superblock和bitmap对应的block 还没映射好
 	if (bitmap && block_is_free(blockno))
 		panic("reading free block %08x\n", blockno);
 }
