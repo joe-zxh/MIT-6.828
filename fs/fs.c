@@ -46,14 +46,13 @@ free_block(uint32_t blockno)
 	bitmap[blockno/32] |= 1<<(blockno%32);
 }
 
-// Search the bitmap for a free block and allocate it.  When you
-// allocate a block, immediately flush the changed bitmap block
-// to disk.
-//
-// Return block number allocated on success,
-// -E_NO_DISK if we are out of blocks.
-//
-// Hint: use free_block as an example for manipulating the bitmap.
+// 在bitmap中寻找一个空闲的块，并且分配它。
+// 当你分配了一个块，马上 把bitmap block给写进磁盘
+// 
+// 如果成功，返回block number
+// 如果block不够用了，返回-E_NO_DISK
+// 
+// 提示：参考free_block是怎么操作bitmap的
 int
 alloc_block(void)
 {
@@ -61,8 +60,23 @@ alloc_block(void)
 	// contains the in-use bits for BLKBITSIZE blocks.  There are
 	// super->s_nblocks blocks in the disk altogether.
 
+	// bitmap由1个或多个块组成。(我们好像就只有一个吧)
+	// 一个bitmap block指定 哪些block是已分配的
+	// 整个磁盘上有super->s_nblocks个block
+
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+	// panic("alloc_block not implemented");
+	// 跳过前面3个块: 启动块、超级块、bitmap块
+	int i;
+	for (i = 3; i < super->s_nblocks; i++) {
+			if (block_is_free(i)) {
+					bitmap[i/32] &= ~(1<<(i % 32));
+					flush_block(diskaddr(i));
+					cprintf("alloc block:%d\n", i);
+					return i;
+			}
+	}
+
 	return -E_NO_DISK;
 }
 
