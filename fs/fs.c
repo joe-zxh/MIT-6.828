@@ -24,8 +24,8 @@ check_super(void)
 // Free block bitmap
 // --------------------------------------------------------------
 
-// Check to see if the block bitmap indicates that block 'blockno' is free.
-// Return 1 if the block is free, 0 if not.
+// 通过bitmap来检查blockno对应的block 是否是 空闲的
+// 如果空闲，返回1；如果已使用，返回0
 bool
 block_is_free(uint32_t blockno)
 {
