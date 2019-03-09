@@ -67,23 +67,22 @@ duppage(envid_t envid, unsigned pn)
     // LAB 4: Your code here.
     // panic("duppage not implemented");
 
-    envid_t this_env_id = sys_getenvid();
-    void * va = (void *)(pn * PGSIZE);
+    void *addr = (void *)(pn * PGSIZE);
+	if (uvpt[pn] & PTE_SHARE) {
+		// cprintf("dup share page :%d\n", pn);
+		if ((r = sys_page_map(0, addr, envid, addr, PTE_SYSCALL)) < 0)
+			panic("duppage sys_page_map:%e", r);
+	} else if (uvpt[pn] & (PTE_W|PTE_COW)) {
+		if ((r = sys_page_map(0, addr, envid, addr, PTE_COW|PTE_U|PTE_P)) < 0)
+			panic("sys_page_map COW:%e", r);
 
-    int perm = uvpt[pn] & 0xFFF;
-    if ( (perm & PTE_W) || (perm & PTE_COW) ) {
-        // marked as COW and read-only
-        perm |= PTE_COW;
-        perm &= ~PTE_W;
-    }
-    // IMPORTANT: adjust permission to the syscall
-    perm &= PTE_SYSCALL;
-    // cprintf("fromenvid = %x, toenvid = %x, dup page %d, addr = %08p, perm = %03x\n",this_env_id, envid, pn, va, perm);
-    if((r = sys_page_map(this_env_id, va, envid, va, perm)) < 0) 
-        panic("duppage: %e",r);
-    if((r = sys_page_map(this_env_id, va, this_env_id, va, perm)) < 0) 
-        panic("duppage: %e",r);
-    return 0;
+		if ((r = sys_page_map(0, addr, 0, addr, PTE_COW|PTE_U|PTE_P)) < 0)
+			panic("sys_page_map COW:%e", r);
+	} else {
+		if ((r = sys_page_map(0, addr, envid, addr, PTE_U|PTE_P)) < 0)
+			panic("sys_page_map UP:%e", r);
+	}
+	return 0;
 }
 
 // 

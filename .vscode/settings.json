@@ -10,6 +10,7 @@
         "trap.h": "c",
         "env.h": "c",
         "spinlock.h": "c",
-        "cpu.h": "c"
+        "cpu.h": "c",
+        "lib.h": "c"
     }
 }

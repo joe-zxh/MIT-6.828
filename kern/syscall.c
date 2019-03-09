@@ -138,6 +138,7 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	}
 
 	e->env_tf = *tf;
+	e->env_tf.tf_cs |= 3;
 	e->env_tf.tf_eflags |= FL_IF;
 	e->env_tf.tf_eflags &= ~FL_IOPL_MASK;
 	return 0;
