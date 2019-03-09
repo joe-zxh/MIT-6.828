@@ -1,16 +1,14 @@
 #include <inc/mmu.h>
 #include <inc/memlayout.h>
 
-// Page fault upcall entrypoint.
+// Page fault upcall 入口.
 
-// This is where we ask the kernel to redirect us to whenever we cause
-// a page fault in user space (see the call to sys_set_pgfault_handler
-// in pgfault.c).
-//
-// When a page fault actually occurs, the kernel switches our ESP to
-// point to the user exception stack if we're not already on the user
-// exception stack, and then it pushes a UTrapframe onto our user
-// exception stack:
+// 这里就是 当出现page fault时，我们让内核 重定向的地方。
+// (详细请查看pgfault.c中的sys_set_pgfault_handler的调用)
+// 
+// 当一个page fault 发生的时候，如果 当前还没处于user exception stack时，
+// 内核 会把我们的ESP指向user exception stack上。
+// 然后 把一个UTrapframe压入我们的 user exception stack中：
 //
 //	trap-time esp
 //	trap-time eflags
@@ -22,10 +20,8 @@
 //	utf_err (error code)
 //	utf_fault_va            <-- %esp
 //
-// If this is a recursive fault, the kernel will reserve for us a
-// blank word above the trap-time esp for scratch work when we unwind
-// the recursive call.
-//
+// 如果这是一个递归的fault，那么内核 会为我们 在trap-time的esp上保留一个空的4字节。
+// 
 // We then have call up to the appropriate page fault handler in C
 // code, pointed to by the global variable '_pgfault_handler'.
 
@@ -65,18 +61,28 @@ _pgfault_upcall:
 	// ways as registers become unavailable as scratch space.
 	//
 	// LAB 4: Your code here.
+	movl 40(%esp), %ebx  # trap-time eip
+	subl $4, 48(%esp)  # trap-time esp minus 4
+	movl 48(%esp), %eax 
+	movl %ebx, (%eax)      # trap-time esp store trap-time eip
+	addl $8, %esp
+	// 这里不想看了，可以参考：https://www.jianshu.com/p/d9b6dcce1c48 里面栈的图。尽管和这里不太一样
 
-	// Restore the trap-time registers.  After you do this, you
-	// can no longer modify any general-purpose registers.
+	// 恢复trap-time的寄存器。在此之后，不能再修改 通用寄存器了。
 	// LAB 4: Your code here.
+	popal
 
 	// Restore eflags from the stack.  After you do this, you can
 	// no longer use arithmetic operations or anything else that
 	// modifies eflags.
 	// LAB 4: Your code here.
+	addl $4, %esp
+    popfl
 
 	// Switch back to the adjusted trap-time stack.
 	// LAB 4: Your code here.
+	popl %esp
 
 	// Return to re-execute the instruction that faulted.
 	// LAB 4: Your code here.
+	ret

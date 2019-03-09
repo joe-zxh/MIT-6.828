@@ -200,10 +200,9 @@ serve_set_size(envid_t envid, struct Fsreq_set_size *req)
 	return file_set_size(o->o_file, req->req_size);
 }
 
-// Read at most ipc->read.req_n bytes from the current seek position
-// in ipc->read.req_fileid.  Return the bytes read from the file to
-// the caller in ipc->readRet, then update the seek position.  Returns
-// the number of bytes successfully read, or < 0 on error.
+// 在ipc->read.req_fileid中，从当前seek的位置开始读，最多读 ipc-read.req_n个字节
+// 把读到的字节 放到ipc->readRet中，返回给调用者，然后更新seek的位置。
+// 返回读取到的字节个数。出错，返回<0
 int
 serve_read(envid_t envid, union Fsipc *ipc)
 {
@@ -214,14 +213,24 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// Lab 5: Your code here:
-	return 0;
+	struct OpenFile *o;
+	int r;
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0) {
+		return r;
+	}
+
+	r = file_read(o->o_file, ret->ret_buf, req->req_n, o->o_fd->fd_offset);
+	if (r < 0)
+		return r;
+
+	o->o_fd->fd_offset += r;
+	return r;
 }
 
 
-// Write req->req_n bytes from req->req_buf to req_fileid, starting at
-// the current seek position, and update the seek position
-// accordingly.  Extend the file if necessary.  Returns the number of
-// bytes written, or < 0 on error.
+// 从当前的seek位置开始，把req->req_buf中的req->req_n个字节写 进去，并更新seek的位置。
+// 如果需要，要 扩展文件的大小。
+// 返回 写入的字节的个数。出错返回<0
 int
 serve_write(envid_t envid, struct Fsreq_write *req)
 {
@@ -229,7 +238,19 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	// panic("serve_write not implemented");
+
+	struct OpenFile *o;
+	int r;
+	if ((r = openfile_lookup(envid, req->req_fileid, &o) < 0))
+		return r;
+
+	r = file_write(o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset);
+	if (r < 0)
+		return r;
+
+	o->o_fd->fd_offset += r;
+	return r;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the

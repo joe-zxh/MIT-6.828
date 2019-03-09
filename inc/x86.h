@@ -257,7 +257,8 @@ xchg(volatile uint32_t *addr, uint32_t newval)
 	asm volatile("lock; xchgl %0, %1"
 		     : "+m" (*addr), "=a" (result)
 		     : "1" (newval)
-		     : "cc");
+		     : "cc");//addr存储的值和newval,并将addr原来存储的值存到result变量中返回
+			 //lock;用于保证多处理器操作的原子性
 	return result;
 }
 

@@ -24,8 +24,8 @@ check_super(void)
 // Free block bitmap
 // --------------------------------------------------------------
 
-// Check to see if the block bitmap indicates that block 'blockno' is free.
-// Return 1 if the block is free, 0 if not.
+// 通过bitmap来检查blockno对应的block 是否是 空闲的
+// 如果空闲，返回1；如果已使用，返回0
 bool
 block_is_free(uint32_t blockno)
 {
@@ -46,14 +46,13 @@ free_block(uint32_t blockno)
 	bitmap[blockno/32] |= 1<<(blockno%32);
 }
 
-// Search the bitmap for a free block and allocate it.  When you
-// allocate a block, immediately flush the changed bitmap block
-// to disk.
-//
-// Return block number allocated on success,
-// -E_NO_DISK if we are out of blocks.
-//
-// Hint: use free_block as an example for manipulating the bitmap.
+// 在bitmap中寻找一个空闲的块，并且分配它。
+// 当你分配了一个块，马上 把bitmap block给写进磁盘
+// 
+// 如果成功，返回block number
+// 如果block不够用了，返回-E_NO_DISK
+// 
+// 提示：参考free_block是怎么操作bitmap的
 int
 alloc_block(void)
 {
@@ -61,8 +60,23 @@ alloc_block(void)
 	// contains the in-use bits for BLKBITSIZE blocks.  There are
 	// super->s_nblocks blocks in the disk altogether.
 
+	// bitmap由1个或多个块组成。(我们好像就只有一个吧)
+	// 一个bitmap block指定 哪些block是已分配的
+	// 整个磁盘上有super->s_nblocks个block
+
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+	// panic("alloc_block not implemented");
+	// 跳过前面3个块: 启动块、超级块、bitmap块
+	int i;
+	for (i = 3; i < super->s_nblocks; i++) {
+			if (block_is_free(i)) {
+					bitmap[i/32] &= ~(1<<(i % 32));
+					flush_block(diskaddr(i));
+					cprintf("alloc block:%d\n", i);
+					return i;
+			}
+	}
+
 	return -E_NO_DISK;
 }
 
@@ -115,42 +129,75 @@ fs_init(void)
 	
 }
 
-// Find the disk block number slot for the 'filebno'th block in file 'f'.
-// Set '*ppdiskbno' to point to that slot.
-// The slot will be one of the f->f_direct[] entries,
-// or an entry in the indirect block.
-// When 'alloc' is set, this function will allocate an indirect block
-// if necessary.
-//
-// Returns:
-//	0 on success (but note that *ppdiskbno might equal 0).
-//	-E_NOT_FOUND if the function needed to allocate an indirect block, but
-//		alloc was 0.
-//	-E_NO_DISK if there's no space on the disk for an indirect block.
-//	-E_INVAL if filebno is out of range (it's >= NDIRECT + NINDIRECT).
-//
-// Analogy: This is like pgdir_walk for files.
-// Hint: Don't forget to clear any block you allocate.
+// 在文件f中查找它的第filebno个block所在的slot(slot指的是 在整个文件系统中的位置，即fs中的第slot个block)，
+// 把*ppdiskbno设为那个slot
+// 这个block所在的位置可能在f->f_direct[]中，也 可能在 indirect block中。
+// 当alloc设为1时，当需要时，会 给indirect block分配物理页。
+// 
+// 返回值：
+//   成功返回0(但需要注意*ppdiskbno也可能为0，为什么???)
+//   -E_NOT_FOUND: 如果filebno对应的block在 indirect block中，而indirect block还没分配，
+// 				且alloc位 为0时
+//   -E_NO_DISK: 没有足够的磁盘空间来 分配indirect block
+//   -E_INVAL: filebno超出了范围(>=NDIRECT+NINDIRECT)
+// 
+// 类比：这和pgdir_walk和像
+// 提示：记得 把新分配的block 给初始化为0
 static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
-       // LAB 5: Your code here.
-       panic("file_block_walk not implemented");
+	// LAB 5: Your code here.
+	// panic("file_block_walk not implemented");
+	if (filebno >= NDIRECT + NINDIRECT)
+		return -E_INVAL; // 超出了一个文件最大的block的个数
+
+	if (filebno < NDIRECT) { //在direct的block中
+		*ppdiskbno = f->f_direct + filebno;
+	} else {
+		if (!f->f_indirect) {
+			if (alloc) {
+				int blockno = alloc_block();
+				if (blockno < 0)
+					return -E_NO_DISK;
+
+				memset(diskaddr(blockno), 0, BLKSIZE);//给新的block初始化为0
+				f->f_indirect = blockno;
+			} else {
+				return -E_NOT_FOUND;
+			}
+		}
+		*ppdiskbno = (uint32_t *)diskaddr(f->f_indirect) + (filebno-NDIRECT);
+	}
+	return 0;
 }
 
-// Set *blk to the address in memory where the filebno'th
-// block of file 'f' would be mapped.
-//
-// Returns 0 on success, < 0 on error.  Errors are:
-//	-E_NO_DISK if a block needed to be allocated but the disk is full.
-//	-E_INVAL if filebno is out of range.
-//
-// Hint: Use file_block_walk and alloc_block.
+// 把blk设置成 文件f 的 第filebno个 块 所在的 虚拟地址
+// 
+// 如果成功，返回0；如果失败，返回<0. 错误有：
+//   -E_NO_DISK: 需要分配block，但 磁盘空间不足
+//   -E_INVAL: filebno超出范围
+// 
+// 提示：使用file_block_walk 和 alloc_block
 int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
-       // LAB 5: Your code here.
-       panic("file_get_block not implemented");
+	// LAB 5: Your code here.
+    // panic("file_get_block not implemented");
+	uint32_t *ppdiskbno;
+	int r;
+	if ((r = file_block_walk(f, filebno, &ppdiskbno, 1)) < 0)
+		return r;
+
+	if (*ppdiskbno == 0) { // 为什么会 有可能映射到boot loader的block???
+		int blockno = alloc_block();
+		if (blockno < 0)
+			return -E_NO_DISK;
+
+		memset(diskaddr(blockno), 0, BLKSIZE);
+		*ppdiskbno = blockno;
+	}
+	*blk = diskaddr(*ppdiskbno);
+	return 0;
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.

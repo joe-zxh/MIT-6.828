@@ -28,6 +28,7 @@ i386_init(void)
 	cons_init();
 
 	cprintf("6828 decimal is %o octal!\n", 6828);
+	// 根据这个入口来看 printf.c、printfmt.c、console.c之间的关系
 
 	// Lab 2 memory management initialization functions
 	mem_init();
@@ -49,6 +50,7 @@ i386_init(void)
 
 	// Acquire the big kernel lock before waking up APs
 	// Your code here:
+	lock_kernel();
 
 	// Starting non-boot CPUs
 	boot_aps();
@@ -86,19 +88,21 @@ static void
 boot_aps(void)
 {
 	extern unsigned char mpentry_start[], mpentry_end[];
+	//mpentry_start和mpentry_end是mpentry.S里面定义的全局变量，用于标记代码的开始和终止的位置
 	void *code;
 	struct CpuInfo *c;
 
-	// Write entry code to unused memory at MPENTRY_PADDR
+	//code放的是 MPENTRY_PADDR的虚拟地址，准备往这个位置写入mpentry.S的代码
 	code = KADDR(MPENTRY_PADDR);
 	memmove(code, mpentry_start, mpentry_end - mpentry_start);
+	//把mpentry.S的代码加载到物理地址为0x7000的位置
 
-	// Boot each AP one at a time
+	// 每次启动一个AP
 	for (c = cpus; c < cpus + ncpu; c++) {
 		if (c == cpus + cpunum())  // We've started already.
 			continue;
 
-		// Tell mpentry.S what stack to use 
+		// Tell mpentry.S what stack to use 在memlayout.h可以查看不同处理器的栈的位置
 		mpentry_kstack = percpu_kstacks[c - cpus] + KSTKSIZE;
 		// Start the CPU at mpentry_start
 		lapic_startap(c->cpu_id, PADDR(code));
@@ -126,9 +130,11 @@ mp_main(void)
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
+	lock_kernel();
+    sched_yield();
 
 	// Remove this after you finish Exercise 6
-	for (;;);
+	// for (;;);
 }
 
 /*
