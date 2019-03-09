@@ -133,15 +133,27 @@ devfile_read(struct Fd *fd, void *buf, size_t n)
 // Returns:
 //	 The number of bytes successfully written.
 //	 < 0 on error.
+
+// 把buf中的(最多)n个字节的内容，写入fd的seek开始的位置
+// 
+// 返回：
+// 	 成功写入的字节数
+//   出错，返回<0
 static ssize_t
 devfile_write(struct Fd *fd, const void *buf, size_t n)
 {
-	// Make an FSREQ_WRITE request to the file system server.  Be
-	// careful: fsipcbuf.write.req_buf is only so large, but
-	// remember that write is always allowed to write *fewer*
-	// bytes than requested.
+	// 向文件系统服务器 发送一个FSREQ_WRITE的请求。
+	// 注意：fsipcbuf.write.req_buf的大小 最大只有PGSIZE左右的大小
+	// 但 n小的写入 也是允许的。(也就是说 我们 不一定 把n个字节都写完，后续 由程序员处理)
+	// 
 	// LAB 5: Your code here
-	panic("devfile_write not implemented");
+	// panic("devfile_write not implemented");
+
+	fsipcbuf.write.req_fileid = fd->fd_file.id;
+	fsipcbuf.write.req_n = MIN(n, PGSIZE);
+	memmove(fsipcbuf.write.req_buf, buf, fsipcbuf.write.req_n);
+	int r = fsipc(FSREQ_WRITE, NULL);
+	return r;
 }
 
 static int

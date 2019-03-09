@@ -329,9 +329,15 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			return -E_INVAL;
 		}
 
-        if ((*pte & perm) != perm){
+		int valid_perm = (PTE_U|PTE_P); //检查perm是否是合理的
+		if ((perm & valid_perm) != valid_perm) {
 			return -E_INVAL;
 		}
+		// 这个地方可能会 有点问题
+        // if ((*pte & perm) != perm){
+		// 	cprintf("Bug3: *pte: %d\n", *pte);
+		// 	// return -E_INVAL;
+		// }
 
         if ((perm & PTE_W) && !(*pte & PTE_W)){//如果perm中有PTE_W的权限，但srcva只有 只读的权限。
 			return -E_INVAL;

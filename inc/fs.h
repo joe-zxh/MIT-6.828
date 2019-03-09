@@ -73,7 +73,7 @@ enum {
 	FSREQ_SYNC
 };
 
-union Fsipc {
+union Fsipc { // 传递 文件系统 相关的IPC的 参数
 	struct Fsreq_open {
 		char req_path[MAXPATHLEN];
 		int req_omode;
