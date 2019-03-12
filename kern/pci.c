@@ -31,6 +31,7 @@ struct pci_driver pci_attach_class[] = {
 // pci_attach_vendor matches the vendor ID and device ID of a PCI device. key1
 // and key2 should be the vendor ID and device ID respectively
 struct pci_driver pci_attach_vendor[] = {
+	{ E1000_VENDER_ID_82540EM, E1000_DEV_ID_82540EM, &e1000_attachfn },
 	{ 0, 0, 0 },
 };
 
@@ -130,7 +131,7 @@ pci_scan_bus(struct pci_bus *bus)
 	memset(&df, 0, sizeof(df));
 	df.bus = bus;
 
-	for (df.dev = 0; df.dev < 32; df.dev++) {
+	for (df.dev = 0; df.dev < 32; df.dev++) { // 每条总线上有32个设备???
 		uint32_t bhlc = pci_conf_read(&df, PCI_BHLC_REG);
 		if (PCI_HDRTYPE_TYPE(bhlc) > 1)	    // Unsupported or no device
 			continue;
@@ -251,7 +252,7 @@ int
 pci_init(void)
 {
 	static struct pci_bus root_bus;
-	memset(&root_bus, 0, sizeof(root_bus));
+	memset(&root_bus, 0, sizeof(root_bus));// root_bus清0
 
-	return pci_scan_bus(&root_bus);
+	return pci_scan_bus(&root_bus);// E1000网卡是连接在0号总线上的???
 }
